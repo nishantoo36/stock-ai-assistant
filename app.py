@@ -349,6 +349,24 @@ Why HOLD?
         st.line_chart(chart_df)
 
         # ------------------------------------------------
+        # TRADE REPUBLIC CTA
+        # ------------------------------------------------
+
+        st.subheader("💼 Start Investing")
+
+        st.write("""
+The smartest way to invest, spend and bank.
+
+Create an account via the link below
+to secure a welcome bonus.
+""")
+
+        st.link_button(
+            "Join Trade Republic",
+            "https://refnocode.trade.re/wnk12lwn"
+        )
+
+        # ------------------------------------------------
         # AI SUMMARY
         # ------------------------------------------------
 
