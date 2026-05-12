@@ -4,3 +4,4 @@ pandas
 yahooquery
 numpy
 feedparser
+forex-python
