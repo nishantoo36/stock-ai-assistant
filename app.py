@@ -107,12 +107,14 @@ to receive beginner-friendly investment insights.
 # SEARCH INPUT
 # ------------------------------------------------
 
-search_text = st.text_input(
-    "🔍 Search stock or ETF",
-    "Nvidia"
-)
+with st.form("stock_search_form"):
 
-search_clicked = st.button("Search")
+    search_text = st.text_input(
+        "🔍 Search stock or ETF",
+        "Nvidia"
+    )
+
+    search_clicked = st.form_submit_button("Search")
 
 selected_ticker = None
 
