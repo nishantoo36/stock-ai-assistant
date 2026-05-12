@@ -42,7 +42,11 @@ def load_stock_news(ticker):
 
     stock = yf.Ticker(ticker)
 
-    return stock.news
+    try:
+        return stock.news
+    except:
+        return []
+
 # ------------------------------------------------
 # RSI CALCULATION
 # ------------------------------------------------
@@ -52,9 +56,11 @@ def calculate_rsi(data, window=14):
     delta = data.diff()
 
     gain = delta.where(delta > 0, 0)
+
     loss = -delta.where(delta < 0, 0)
 
     avg_gain = gain.rolling(window=window).mean()
+
     avg_loss = loss.rolling(window=window).mean()
 
     rs = avg_gain / avg_loss
@@ -88,6 +94,7 @@ search_text = st.text_input(
 search_clicked = st.button("Search")
 
 selected_ticker = None
+
 company_name = None
 
 # ------------------------------------------------
@@ -109,7 +116,9 @@ if search_clicked and search_text:
         for q in quotes[:10]:
 
             symbol = q.get("symbol", "")
+
             name = q.get("shortname", symbol)
+
             exchange = q.get("exchange", "")
 
             if symbol and name:
@@ -135,11 +144,13 @@ if search_clicked and search_text:
         else:
 
             st.error("No matching investments found")
+
             st.stop()
 
     except Exception as e:
 
         st.error(f"Search error: {e}")
+
         st.stop()
 
 # ------------------------------------------------
@@ -157,11 +168,13 @@ if selected_ticker:
         with st.spinner("Loading market data..."):
 
             df = load_stock_data(selected_ticker)
+
             news = load_stock_news(selected_ticker)
 
         if df.empty:
 
             st.error("No market data available")
+
             st.stop()
 
         # ------------------------------------------------
@@ -429,31 +442,46 @@ This tool should support your decisions,
 not replace your own research.
 """)
 
+            # ------------------------------------------------
+            # RECENT NEWS
+            # ------------------------------------------------
+
+            st.subheader("📰 Recent Market News")
+
+            if news and isinstance(news, list):
+
+                for article in news[:5]:
+
+                    if isinstance(article, dict):
+
+                        title = article.get(
+                            "title",
+                            "News Article"
+                        )
+
+                        publisher = article.get(
+                            "publisher",
+                            "Unknown Publisher"
+                        )
+
+                        link = article.get("link", "")
+
+                        if link:
+
+                            st.markdown(
+                                f"- [{title}]({link}) ({publisher})"
+                            )
+
+                        else:
+
+                            st.write(
+                                f"• {title} ({publisher})"
+                            )
+
+            else:
+
+                st.write("No recent news available.")
+
     except Exception as e:
 
         st.error(f"Error loading stock data: {e}")
-        
-# ------------------------------------------------
-# RECENT NEWS
-# ------------------------------------------------
-
-st.subheader("📰 Recent Market News")
-
-if news:
-
-    for article in news[:5]:
-
-        title = article.get("title", "News Article")
-
-        link = article.get("link", "")
-
-        publisher = article.get("publisher", "")
-
-        st.markdown(f"""
-- [{title}]({link})
-  ({publisher})
-""")
-
-else:
-
-    st.write("No recent news available.")
