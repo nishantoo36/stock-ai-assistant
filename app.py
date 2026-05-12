@@ -34,6 +34,16 @@ def load_stock_data(ticker):
     return stock.history(period="1y")
 
 # ------------------------------------------------
+# CACHE STOCK NEWS
+# ------------------------------------------------
+
+@st.cache_data(ttl=1800)
+def load_stock_news(ticker):
+
+    stock = yf.Ticker(ticker)
+
+    return stock.news
+# ------------------------------------------------
 # RSI CALCULATION
 # ------------------------------------------------
 
@@ -147,6 +157,7 @@ if selected_ticker:
         with st.spinner("Loading market data..."):
 
             df = load_stock_data(selected_ticker)
+            news = load_stock_news(selected_ticker)
 
         if df.empty:
 
@@ -421,3 +432,28 @@ not replace your own research.
     except Exception as e:
 
         st.error(f"Error loading stock data: {e}")
+        
+# ------------------------------------------------
+# RECENT NEWS
+# ------------------------------------------------
+
+st.subheader("📰 Recent Market News")
+
+if news:
+
+    for article in news[:5]:
+
+        title = article.get("title", "News Article")
+
+        link = article.get("link", "")
+
+        publisher = article.get("publisher", "")
+
+        st.markdown(f"""
+- [{title}]({link})
+  ({publisher})
+""")
+
+else:
+
+    st.write("No recent news available.")
