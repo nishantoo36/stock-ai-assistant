@@ -448,39 +448,48 @@ not replace your own research.
 
             st.subheader("📰 Recent Market News")
 
+            valid_news_found = False
+
             if news and isinstance(news, list):
 
-                for article in news[:5]:
+                for article in news[:10]:
 
-                    if isinstance(article, dict):
+                    if not isinstance(article, dict):
+                        continue
 
-                        title = article.get(
-                            "title",
-                            "News Article"
+                    title = article.get("title")
+
+                    publisher = article.get("publisher")
+
+                    link = article.get("link")
+
+                    # Skip broken entries
+                    if not title or title == "News Article":
+                        continue
+
+                    valid_news_found = True
+
+                    if link:
+
+                        st.markdown(
+                            f"• [{title}]({link})"
                         )
 
-                        publisher = article.get(
-                            "publisher",
-                            "Unknown Publisher"
-                        )
+                        if publisher:
+                            st.caption(publisher)
 
-                        link = article.get("link", "")
+                    else:
 
-                        if link:
+                        st.write(f"• {title}")
 
-                            st.markdown(
-                                f"- [{title}]({link}) ({publisher})"
-                            )
+                        if publisher:
+                            st.caption(publisher)
 
-                        else:
+            if not valid_news_found:
 
-                            st.write(
-                                f"• {title} ({publisher})"
-                            )
-
-            else:
-
-                st.write("No recent news available.")
+                st.write(
+                    "No high-quality recent news available for this stock."
+                )
 
     except Exception as e:
 
