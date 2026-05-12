@@ -2,6 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import feedparser
 from yahooquery import search
 
 # ------------------------------------------------
@@ -34,18 +35,38 @@ def load_stock_data(ticker):
     return stock.history(period="1y")
 
 # ------------------------------------------------
-# CACHE STOCK NEWS
+# GOOGLE NEWS RSS
 # ------------------------------------------------
 
 @st.cache_data(ttl=1800)
-def load_stock_news(ticker):
+def load_stock_news(company_name):
 
-    stock = yf.Ticker(ticker)
+    query = company_name.replace(" ", "+")
 
-    try:
-        return stock.news
-    except:
-        return []
+    url = (
+        f"https://news.google.com/rss/search?q={query}+stock"
+    )
+
+    feed = feedparser.parse(url)
+
+    news_list = []
+
+    for entry in feed.entries[:10]:
+
+        news_list.append({
+
+            "title": entry.title,
+
+            "link": entry.link,
+
+            "publisher": (
+                entry.source.title
+                if hasattr(entry, "source")
+                else "Google News"
+            )
+        })
+
+    return news_list
 
 # ------------------------------------------------
 # RSI CALCULATION
@@ -123,7 +144,9 @@ if search_clicked and search_text:
 
             if symbol and name:
 
-                display_name = f"{name} ({symbol}) - {exchange}"
+                display_name = (
+                    f"{name} ({symbol}) - {exchange}"
+                )
 
                 stock_options[display_name] = {
                     "ticker": symbol,
@@ -137,9 +160,13 @@ if search_clicked and search_text:
                 list(stock_options.keys())
             )
 
-            selected_ticker = stock_options[selected_stock]["ticker"]
+            selected_ticker = (
+                stock_options[selected_stock]["ticker"]
+            )
 
-            company_name = stock_options[selected_stock]["name"]
+            company_name = (
+                stock_options[selected_stock]["name"]
+            )
 
         else:
 
@@ -169,7 +196,7 @@ if selected_ticker:
 
             df = load_stock_data(selected_ticker)
 
-            news = load_stock_news(selected_ticker)
+            news = load_stock_news(company_name)
 
         if df.empty:
 
@@ -183,9 +210,17 @@ if selected_ticker:
 
         df["RSI"] = calculate_rsi(df["Close"])
 
-        df["SMA20"] = df["Close"].rolling(window=20).mean()
+        df["SMA20"] = (
+            df["Close"]
+            .rolling(window=20)
+            .mean()
+        )
 
-        df["SMA50"] = df["Close"].rolling(window=50).mean()
+        df["SMA50"] = (
+            df["Close"]
+            .rolling(window=50)
+            .mean()
+        )
 
         latest = df.iloc[-1]
 
@@ -448,47 +483,29 @@ not replace your own research.
 
             st.subheader("📰 Recent Market News")
 
-            valid_news_found = False
+            if news:
 
-            if news and isinstance(news, list):
+                for article in news:
 
-                for article in news[:10]:
+                    title = article.get("title", "")
 
-                    if not isinstance(article, dict):
-                        continue
+                    link = article.get("link", "")
 
-                    title = article.get("title")
+                    publisher = article.get(
+                        "publisher",
+                        "Google News"
+                    )
 
-                    publisher = article.get("publisher")
+                    st.markdown(
+                        f"• [{title}]({link})"
+                    )
 
-                    link = article.get("link")
+                    st.caption(publisher)
 
-                    # Skip broken entries
-                    if not title or title == "News Article":
-                        continue
-
-                    valid_news_found = True
-
-                    if link:
-
-                        st.markdown(
-                            f"• [{title}]({link})"
-                        )
-
-                        if publisher:
-                            st.caption(publisher)
-
-                    else:
-
-                        st.write(f"• {title}")
-
-                        if publisher:
-                            st.caption(publisher)
-
-            if not valid_news_found:
+            else:
 
                 st.write(
-                    "No high-quality recent news available for this stock."
+                    "No recent market news available."
                 )
 
     except Exception as e:
