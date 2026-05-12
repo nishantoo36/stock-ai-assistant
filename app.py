@@ -3,6 +3,8 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import feedparser
+import plotly.graph_objects as go
+
 from yahooquery import search
 from forex_python.converter import CurrencyRates
 
@@ -14,6 +16,16 @@ st.set_page_config(
     page_title="AI Investment Assistant",
     layout="wide"
 )
+
+# ------------------------------------------------
+# SESSION STATE
+# ------------------------------------------------
+
+if "selected_ticker" not in st.session_state:
+    st.session_state.selected_ticker = None
+
+if "company_name" not in st.session_state:
+    st.session_state.company_name = None
 
 # ------------------------------------------------
 # FOREX
@@ -57,11 +69,24 @@ def search_stocks(query):
 # ------------------------------------------------
 
 @st.cache_data(ttl=3600)
-def load_stock_data(ticker):
+def load_stock_data(ticker, period):
 
     stock = yf.Ticker(ticker)
 
-    return stock.history(period="1y")
+    period_mapping = {
+        "3D": "5d",
+        "5D": "5d",
+        "1M": "1mo",
+        "3M": "3mo",
+        "6M": "6mo",
+        "1Y": "1y",
+        "5Y": "5y",
+        "MAX": "max"
+    }
+
+    yf_period = period_mapping.get(period, "5d")
+
+    return stock.history(period=yf_period)
 
 # ------------------------------------------------
 # GOOGLE NEWS RSS
@@ -171,10 +196,6 @@ with st.form("stock_search_form"):
         "Search"
     )
 
-selected_ticker = None
-
-company_name = None
-
 # ------------------------------------------------
 # SEARCH EXECUTION
 # ------------------------------------------------
@@ -217,11 +238,11 @@ if search_clicked and search_text:
                 list(stock_options.keys())
             )
 
-            selected_ticker = (
+            st.session_state.selected_ticker = (
                 stock_options[selected_stock]["ticker"]
             )
 
-            company_name = (
+            st.session_state.company_name = (
                 stock_options[selected_stock]["name"]
             )
 
@@ -241,9 +262,28 @@ if search_clicked and search_text:
 # STOCK ANALYSIS
 # ------------------------------------------------
 
-if selected_ticker:
+if st.session_state.selected_ticker:
 
     try:
+
+        # ------------------------------------------------
+        # CHART PERIOD
+        # ------------------------------------------------
+
+        chart_period = st.selectbox(
+            "📅 Chart Time Range",
+            [
+                "3D",
+                "5D",
+                "1M",
+                "3M",
+                "6M",
+                "1Y",
+                "5Y",
+                "MAX"
+            ],
+            index=0
+        )
 
         # ------------------------------------------------
         # LOAD DATA
@@ -251,7 +291,9 @@ if selected_ticker:
 
         with st.spinner("Loading market data..."):
 
-            stock = yf.Ticker(selected_ticker)
+            stock = yf.Ticker(
+                st.session_state.selected_ticker
+            )
 
             stock_info = stock.info
 
@@ -260,9 +302,14 @@ if selected_ticker:
                 "USD"
             )
 
-            df = load_stock_data(selected_ticker)
+            df = load_stock_data(
+                st.session_state.selected_ticker,
+                chart_period
+            )
 
-            news = load_stock_news(company_name)
+            news = load_stock_news(
+                st.session_state.company_name
+            )
 
         if df.empty:
 
@@ -335,14 +382,14 @@ if selected_ticker:
         # PRICE CHANGE
         # ------------------------------------------------
 
-        if len(df) > 30:
+        if len(df) > 2:
 
             recent_change = (
                 (
                     df["Close"].iloc[-1]
-                    - df["Close"].iloc[-30]
+                    - df["Close"].iloc[0]
                 )
-                / df["Close"].iloc[-30]
+                / df["Close"].iloc[0]
             ) * 100
 
         else:
@@ -365,8 +412,6 @@ if selected_ticker:
 
         beginner_tip = ""
 
-        # BUY SIGNAL
-
         if rsi < 35 and sma20 > sma50:
 
             recommendation = "BUY"
@@ -383,21 +428,19 @@ if selected_ticker:
             detailed_reason = f"""
 Why BUY?
 
-• RSI is low ({rsi:.1f}), meaning the stock recently dropped heavily.
+• RSI is low ({rsi:.1f})
 
-• Short-term trend is improving.
+• Short-term trend is improving
 
-• Investors may have overreacted recently.
+• Investors may have overreacted recently
 
-• This sometimes creates attractive buying opportunities.
+• This sometimes creates buying opportunities
 """
 
             beginner_tip = (
                 "Consider investing gradually instead "
                 "of investing everything at once."
             )
-
-        # SELL SIGNAL
 
         elif rsi > 70 and recent_change > 15:
 
@@ -415,20 +458,18 @@ Why BUY?
             detailed_reason = f"""
 Why SELL?
 
-• RSI is high ({rsi:.1f}), meaning investors may be overly excited.
+• RSI is high ({rsi:.1f})
 
-• The stock rose {recent_change:.1f}% recently.
+• Stock rose {recent_change:.1f}% recently
 
-• Stocks that rise too quickly sometimes fall later.
+• Stocks that rise too quickly can fall later
 
-• Risk currently appears elevated.
+• Risk currently appears elevated
 """
 
             beginner_tip = (
                 "Avoid emotional buying after large price increases."
             )
-
-        # HOLD SIGNAL
 
         else:
 
@@ -446,13 +487,13 @@ Why SELL?
             detailed_reason = f"""
 Why HOLD?
 
-• RSI is currently {rsi:.1f}, which is within a more normal range.
+• RSI is currently {rsi:.1f}
 
-• No strong buy or sell signal detected.
+• No strong buy or sell signal detected
 
-• Market behaviour currently appears relatively stable.
+• Market behaviour appears stable
 
-• Waiting may reduce unnecessary risk.
+• Waiting may reduce unnecessary risk
 """
 
             beginner_tip = (
@@ -464,7 +505,9 @@ Why HOLD?
         # HEADER
         # ------------------------------------------------
 
-        st.header(f"📊 {company_name}")
+        st.header(
+            f"📊 {st.session_state.company_name}"
+        )
 
         # ------------------------------------------------
         # METRICS
@@ -497,15 +540,115 @@ Why HOLD?
         # CHART
         # ------------------------------------------------
 
-        st.subheader("📈 Price Trend")
+        st.subheader(
+            f"📈 Price Trend ({chart_period})"
+        )
 
         chart_df = df[[
             "Close",
             "SMA20",
             "SMA50"
-        ]]
+        ]].copy()
 
-        st.line_chart(chart_df)
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=chart_df.index,
+                y=chart_df["Close"],
+                mode="lines",
+                name="Price"
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=chart_df.index,
+                y=chart_df["SMA20"],
+                mode="lines",
+                name="SMA20"
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=chart_df.index,
+                y=chart_df["SMA50"],
+                mode="lines",
+                name="SMA50"
+            )
+        )
+
+        min_price = chart_df["Close"].min()
+        max_price = chart_df["Close"].max()
+
+        padding = (
+            (max_price - min_price) * 0.15
+        )
+
+        if padding < 1:
+            padding = 1
+
+        fig.update_layout(
+
+            height=500,
+
+            hovermode="x unified",
+
+            xaxis_title="Date",
+
+            yaxis_title=(
+                f"Price ({display_currency})"
+            ),
+
+            yaxis=dict(
+                range=[
+                    min_price - padding,
+                    max_price + padding
+                ]
+            )
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+        # ------------------------------------------------
+        # EDUCATION SECTION
+        # ------------------------------------------------
+
+        with st.expander("📚 What do RSI, SMA20 and SMA50 mean?"):
+
+            st.write("""
+### RSI (Relative Strength Index)
+
+RSI helps understand whether a stock may have risen or fallen too quickly.
+
+• Low RSI → stock may be undervalued
+
+• High RSI → stock may be overbought
+
+---
+
+### SMA20 (Simple Moving Average 20)
+
+Average stock price over the last 20 days.
+
+This helps identify short-term trend direction.
+
+---
+
+### SMA50 (Simple Moving Average 50)
+
+Average stock price over the last 50 days.
+
+This helps identify longer-term market direction.
+
+---
+
+Investors use these indicators to better understand stock momentum and trend behaviour.
+""")
 
         # ------------------------------------------------
         # TRADE REPUBLIC CTA
@@ -562,11 +705,13 @@ to secure a welcome bonus.
             st.write(f"""
 • Current RSI: {rsi:.1f}
 
-• 30-Day Price Change: {recent_change:.1f}%
+• Price Change: {recent_change:.1f}%
 
 • Original Currency: {original_currency}
 
 • Display Currency: {display_currency}
+
+• Analysis Timeframe: {chart_period}
 
 • Short-Term Trend:
 {'Positive' if sma20 > sma50 else 'Weak'}
