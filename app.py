@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import feedparser
 from yahooquery import search
+from forex_python.converter import CurrencyRates
 
 # ------------------------------------------------
 # PAGE CONFIG
@@ -13,6 +14,34 @@ st.set_page_config(
     page_title="AI Investment Assistant",
     layout="wide"
 )
+
+# ------------------------------------------------
+# FOREX
+# ------------------------------------------------
+
+c = CurrencyRates()
+
+# ------------------------------------------------
+# CURRENCY SYMBOLS
+# ------------------------------------------------
+
+def get_currency_symbol(currency):
+
+    symbols = {
+        "USD": "$",
+        "EUR": "€",
+        "INR": "₹",
+        "GBP": "£",
+        "JPY": "¥",
+        "CNY": "¥",
+        "AED": "د.إ",
+        "AUD": "A$",
+        "CAD": "C$",
+        "CHF": "CHF ",
+        "SGD": "S$"
+    }
+
+    return symbols.get(currency, currency + " ")
 
 # ------------------------------------------------
 # CACHE STOCK SEARCH
@@ -104,7 +133,31 @@ to receive beginner-friendly investment insights.
 """)
 
 # ------------------------------------------------
-# SEARCH INPUT
+# CURRENCY SELECTOR
+# ------------------------------------------------
+
+currency_options = [
+    "Original",
+    "USD",
+    "EUR",
+    "INR",
+    "GBP",
+    "JPY",
+    "AUD",
+    "CAD",
+    "CHF",
+    "CNY",
+    "SGD",
+    "AED"
+]
+
+currency_option = st.selectbox(
+    "💱 Display Currency",
+    currency_options
+)
+
+# ------------------------------------------------
+# SEARCH FORM
 # ------------------------------------------------
 
 with st.form("stock_search_form"):
@@ -114,7 +167,9 @@ with st.form("stock_search_form"):
         "Nvidia"
     )
 
-    search_clicked = st.form_submit_button("Search")
+    search_clicked = st.form_submit_button(
+        "Search"
+    )
 
 selected_ticker = None
 
@@ -196,6 +251,15 @@ if selected_ticker:
 
         with st.spinner("Loading market data..."):
 
+            stock = yf.Ticker(selected_ticker)
+
+            stock_info = stock.info
+
+            original_currency = stock_info.get(
+                "currency",
+                "USD"
+            )
+
             df = load_stock_data(selected_ticker)
 
             news = load_stock_news(company_name)
@@ -226,7 +290,40 @@ if selected_ticker:
 
         latest = df.iloc[-1]
 
-        current_price = latest["Close"]
+        original_price = latest["Close"]
+
+        current_price = original_price
+
+        display_currency = original_currency
+
+        # ------------------------------------------------
+        # CURRENCY CONVERSION
+        # ------------------------------------------------
+
+        try:
+
+            if (
+                currency_option != "Original"
+                and original_currency != currency_option
+            ):
+
+                conversion_rate = c.get_rate(
+                    original_currency,
+                    currency_option
+                )
+
+                current_price = (
+                    original_price
+                    * conversion_rate
+                )
+
+                display_currency = currency_option
+
+        except:
+
+            current_price = original_price
+
+            display_currency = original_currency
 
         rsi = latest["RSI"]
 
@@ -377,7 +474,8 @@ Why HOLD?
 
         col1.metric(
             "Current Price",
-            f"${current_price:.2f}"
+            f"{get_currency_symbol(display_currency)}"
+            f"{current_price:.2f}"
         )
 
         col2.metric(
@@ -465,6 +563,10 @@ to secure a welcome bonus.
 • Current RSI: {rsi:.1f}
 
 • 30-Day Price Change: {recent_change:.1f}%
+
+• Original Currency: {original_currency}
+
+• Display Currency: {display_currency}
 
 • Short-Term Trend:
 {'Positive' if sma20 > sma50 else 'Weak'}
