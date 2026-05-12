@@ -1,7 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import pandas_ta as ta
+import numpy as np
 from yahooquery import search
 
 # ------------------------------------------------
@@ -14,22 +14,40 @@ st.set_page_config(
 )
 
 # ------------------------------------------------
+# RSI FUNCTION
+# ------------------------------------------------
+
+def calculate_rsi(data, window=14):
+
+    delta = data.diff()
+
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+
+    avg_gain = gain.rolling(window=window).mean()
+    avg_loss = loss.rolling(window=window).mean()
+
+    rs = avg_gain / avg_loss
+
+    rsi = 100 - (100 / (1 + rs))
+
+    return rsi
+
+# ------------------------------------------------
 # HEADER
 # ------------------------------------------------
 
 st.title("📈 AI Investment Assistant")
 
-st.markdown(
-    """
-    Simple AI-powered investment guidance.
+st.markdown("""
+Simple AI-powered stock guidance.
 
-    Search any stock, ETF, or company name
-    to get beginner-friendly BUY / HOLD / SELL suggestions.
-    """
-)
+Search stocks, ETFs, or companies
+to receive beginner-friendly investment insights.
+""")
 
 # ------------------------------------------------
-# SEARCH
+# SEARCH SECTION
 # ------------------------------------------------
 
 search_text = st.text_input(
@@ -77,7 +95,7 @@ if search_text:
         st.stop()
 
 # ------------------------------------------------
-# ANALYSIS
+# STOCK ANALYSIS
 # ------------------------------------------------
 
 if selected_ticker:
@@ -93,12 +111,14 @@ if selected_ticker:
             st.stop()
 
         # ------------------------------------------------
-        # TECHNICAL INDICATORS
+        # INDICATORS
         # ------------------------------------------------
 
-        df["RSI"] = ta.rsi(df["Close"], length=14)
-        df["SMA20"] = ta.sma(df["Close"], length=20)
-        df["SMA50"] = ta.sma(df["Close"], length=50)
+        df["RSI"] = calculate_rsi(df["Close"])
+
+        df["SMA20"] = df["Close"].rolling(window=20).mean()
+
+        df["SMA50"] = df["Close"].rolling(window=50).mean()
 
         latest = df.iloc[-1]
 
@@ -112,11 +132,14 @@ if selected_ticker:
         company_name = info.get("longName", selected_ticker)
 
         # ------------------------------------------------
-        # PRICE TREND
+        # PRICE CHANGE
         # ------------------------------------------------
 
         recent_change = (
-            (df["Close"].iloc[-1] - df["Close"].iloc[-30])
+            (
+                df["Close"].iloc[-1]
+                - df["Close"].iloc[-30]
+            )
             / df["Close"].iloc[-30]
         ) * 100
 
@@ -132,7 +155,7 @@ if selected_ticker:
         detailed_reason = ""
         beginner_tip = ""
 
-        # STRONG BUY
+        # BUY
         if rsi < 35 and sma20 > sma50:
 
             recommendation = "BUY"
@@ -141,27 +164,27 @@ if selected_ticker:
 
             summary = (
                 "The stock looks potentially undervalued "
-                "and may be starting to recover."
+                "and may be recovering."
             )
 
             detailed_reason = f"""
-            Why BUY?
+Why BUY?
 
-            • RSI is low ({rsi:.1f}), meaning the stock recently dropped heavily.
+• RSI is low ({rsi:.1f}), meaning the stock recently dropped heavily.
 
-            • Short-term trend is improving.
+• Short-term trend is improving.
 
-            • Investors may have overreacted recently.
+• Investors may have overreacted recently.
 
-            • This sometimes creates good long-term buying opportunities.
-            """
+• This sometimes creates attractive buying opportunities.
+"""
 
             beginner_tip = (
-                "Instead of investing all money at once, "
-                "consider investing gradually over time."
+                "Consider investing gradually instead "
+                "of all at once."
             )
 
-        # STRONG SELL
+        # SELL
         elif rsi > 70 and recent_change > 15:
 
             recommendation = "SELL"
@@ -169,24 +192,24 @@ if selected_ticker:
             risk = "High"
 
             summary = (
-                "The stock price increased very quickly recently "
+                "The stock increased very quickly recently "
                 "which may increase short-term risk."
             )
 
             detailed_reason = f"""
-            Why SELL?
+Why SELL?
 
-            • RSI is high ({rsi:.1f}), meaning investors may be too excited.
+• RSI is high ({rsi:.1f}), meaning investors may be overly excited.
 
-            • The stock rose {recent_change:.1f}% recently.
+• The stock rose {recent_change:.1f}% recently.
 
-            • Stocks that rise too quickly sometimes fall back later.
+• Stocks that rise too quickly sometimes fall back later.
 
-            • Risk currently appears elevated.
-            """
+• Risk currently appears elevated.
+"""
 
             beginner_tip = (
-                "Avoid emotional buying after large price increases or hype."
+                "Avoid emotional buying after large price increases."
             )
 
         # HOLD
@@ -202,19 +225,19 @@ if selected_ticker:
             )
 
             detailed_reason = f"""
-            Why HOLD?
+Why HOLD?
 
-            • RSI is currently {rsi:.1f}, which is within a more normal range.
+• RSI is currently {rsi:.1f}, which is within a more normal range.
 
-            • No strong overbuying or overselling signals detected.
+• No strong buy or sell signal detected.
 
-            • Market behaviour currently appears relatively stable.
+• Market behaviour currently appears relatively stable.
 
-            • Waiting may reduce unnecessary risk.
-            """
+• Waiting may reduce unnecessary risk.
+"""
 
             beginner_tip = (
-                "This could be a good time to research the company further "
+                "This may be a good time to monitor the stock "
                 "before making a decision."
             )
 
@@ -256,23 +279,30 @@ if selected_ticker:
 
         st.subheader("📈 Price Trend")
 
-        chart_df = df[["Close", "SMA20", "SMA50"]]
+        chart_df = df[[
+            "Close",
+            "SMA20",
+            "SMA50"
+        ]]
 
         st.line_chart(chart_df)
 
         # ------------------------------------------------
-        # MAIN SUMMARY
+        # AI SUMMARY
         # ------------------------------------------------
 
         st.subheader("🤖 AI Summary")
 
         if recommendation == "BUY":
+
             st.success(summary)
 
         elif recommendation == "SELL":
+
             st.error(summary)
 
         else:
+
             st.warning(summary)
 
         # ------------------------------------------------
@@ -289,26 +319,25 @@ if selected_ticker:
 
             st.info(beginner_tip)
 
-            st.subheader("⚠️ Important Reminder")
-
-            st.write(
-                """
-                No AI can predict the market perfectly.
-
-                This tool should support your decisions,
-                not replace your own research.
-                """
-            )
-
             st.subheader("📋 Market Snapshot")
 
             st.write(f"""
-            • Current RSI: {rsi:.1f}
+• Current RSI: {rsi:.1f}
 
-            • 30-Day Price Change: {recent_change:.1f}%
+• 30-Day Price Change: {recent_change:.1f}%
 
-            • Short-Term Trend: {'Positive' if sma20 > sma50 else 'Weak'}
-            """)
+• Short-Term Trend:
+{'Positive' if sma20 > sma50 else 'Weak'}
+""")
+
+            st.subheader("⚠️ Important Reminder")
+
+            st.write("""
+No AI can predict stock markets perfectly.
+
+This tool should support your decisions,
+not replace your own research.
+""")
 
     except Exception as e:
         st.error(f"Error loading stock data: {e}")
