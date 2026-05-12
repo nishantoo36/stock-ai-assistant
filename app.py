@@ -14,7 +14,27 @@ st.set_page_config(
 )
 
 # ------------------------------------------------
-# RSI FUNCTION
+# CACHE STOCK SEARCH
+# ------------------------------------------------
+
+@st.cache_data(ttl=1800)
+def search_stocks(query):
+
+    return search(query)
+
+# ------------------------------------------------
+# CACHE STOCK DATA
+# ------------------------------------------------
+
+@st.cache_data(ttl=3600)
+def load_stock_data(ticker):
+
+    stock = yf.Ticker(ticker)
+
+    return stock.history(period="1y")
+
+# ------------------------------------------------
+# RSI CALCULATION
 # ------------------------------------------------
 
 def calculate_rsi(data, window=14):
@@ -47,7 +67,7 @@ to receive beginner-friendly investment insights.
 """)
 
 # ------------------------------------------------
-# SEARCH SECTION
+# SEARCH INPUT
 # ------------------------------------------------
 
 search_text = st.text_input(
@@ -55,13 +75,22 @@ search_text = st.text_input(
     "Nvidia"
 )
 
-selected_ticker = None
+search_clicked = st.button("Search")
 
-if search_text:
+selected_ticker = None
+company_name = None
+
+# ------------------------------------------------
+# SEARCH EXECUTION
+# ------------------------------------------------
+
+if search_clicked and search_text:
 
     try:
 
-        results = search(search_text)
+        with st.spinner("Searching investments..."):
+
+            results = search_stocks(search_text)
 
         quotes = results.get("quotes", [])
 
@@ -73,9 +102,14 @@ if search_text:
             name = q.get("shortname", symbol)
             exchange = q.get("exchange", "")
 
-            display_name = f"{name} ({symbol}) - {exchange}"
+            if symbol and name:
 
-            stock_options[display_name] = symbol
+                display_name = f"{name} ({symbol}) - {exchange}"
+
+                stock_options[display_name] = {
+                    "ticker": symbol,
+                    "name": name
+                }
 
         if stock_options:
 
@@ -84,13 +118,17 @@ if search_text:
                 list(stock_options.keys())
             )
 
-            selected_ticker = stock_options[selected_stock]
+            selected_ticker = stock_options[selected_stock]["ticker"]
+
+            company_name = stock_options[selected_stock]["name"]
 
         else:
+
             st.error("No matching investments found")
             st.stop()
 
     except Exception as e:
+
         st.error(f"Search error: {e}")
         st.stop()
 
@@ -102,11 +140,16 @@ if selected_ticker:
 
     try:
 
-        stock = yf.Ticker(selected_ticker)
+        # ------------------------------------------------
+        # LOAD DATA
+        # ------------------------------------------------
 
-        df = stock.history(period="1y")
+        with st.spinner("Loading market data..."):
+
+            df = load_stock_data(selected_ticker)
 
         if df.empty:
+
             st.error("No market data available")
             st.stop()
 
@@ -123,43 +166,55 @@ if selected_ticker:
         latest = df.iloc[-1]
 
         current_price = latest["Close"]
+
         rsi = latest["RSI"]
+
         sma20 = latest["SMA20"]
+
         sma50 = latest["SMA50"]
-
-        info = stock.info
-
-        company_name = info.get("longName", selected_ticker)
 
         # ------------------------------------------------
         # PRICE CHANGE
         # ------------------------------------------------
 
-        recent_change = (
-            (
-                df["Close"].iloc[-1]
-                - df["Close"].iloc[-30]
-            )
-            / df["Close"].iloc[-30]
-        ) * 100
+        if len(df) > 30:
+
+            recent_change = (
+                (
+                    df["Close"].iloc[-1]
+                    - df["Close"].iloc[-30]
+                )
+                / df["Close"].iloc[-30]
+            ) * 100
+
+        else:
+
+            recent_change = 0
 
         # ------------------------------------------------
         # AI RECOMMENDATION LOGIC
         # ------------------------------------------------
 
         recommendation = "HOLD"
+
         confidence = 65
+
         risk = "Medium"
 
         summary = ""
+
         detailed_reason = ""
+
         beginner_tip = ""
 
-        # BUY
+        # BUY SIGNAL
+
         if rsi < 35 and sma20 > sma50:
 
             recommendation = "BUY"
+
             confidence = 84
+
             risk = "Medium"
 
             summary = (
@@ -181,14 +236,17 @@ Why BUY?
 
             beginner_tip = (
                 "Consider investing gradually instead "
-                "of all at once."
+                "of investing everything at once."
             )
 
-        # SELL
+        # SELL SIGNAL
+
         elif rsi > 70 and recent_change > 15:
 
             recommendation = "SELL"
+
             confidence = 83
+
             risk = "High"
 
             summary = (
@@ -203,7 +261,7 @@ Why SELL?
 
 • The stock rose {recent_change:.1f}% recently.
 
-• Stocks that rise too quickly sometimes fall back later.
+• Stocks that rise too quickly sometimes fall later.
 
 • Risk currently appears elevated.
 """
@@ -212,11 +270,14 @@ Why SELL?
                 "Avoid emotional buying after large price increases."
             )
 
-        # HOLD
+        # HOLD SIGNAL
+
         else:
 
             recommendation = "HOLD"
+
             confidence = 68
+
             risk = "Medium"
 
             summary = (
@@ -340,4 +401,5 @@ not replace your own research.
 """)
 
     except Exception as e:
+
         st.error(f"Error loading stock data: {e}")
