@@ -690,22 +690,24 @@ if st.session_state.selected_ticker:
         raw_price    = get_last_close(df_analysis, info)
         curr_price   = raw_price
         disp_curr    = orig_curr
+        fx_rate      = 1.0
 
         try:
             if currency_option != "Original" and orig_curr != currency_option and not np.isnan(raw_price):
-                rate       = c.get_rate(orig_curr, currency_option)
-                curr_price = raw_price * rate
+                fx_rate    = c.get_rate(orig_curr, currency_option)
+                curr_price = raw_price * fx_rate
                 disp_curr  = currency_option
         except:
             pass
 
         sym = get_currency_symbol(disp_curr)
 
-        # Day change
-        prev = info.get("previousClose") or info.get("regularMarketPreviousClose")
-        if prev and not np.isnan(curr_price):
-            day_chg     = curr_price - float(prev)
-            day_chg_pct = (day_chg / float(prev)) * 100
+        # Day change — convert prev to the same display currency using fx_rate
+        raw_prev = info.get("previousClose") or info.get("regularMarketPreviousClose")
+        if raw_prev and not np.isnan(curr_price):
+            prev_converted = float(raw_prev) * fx_rate
+            day_chg     = curr_price - prev_converted
+            day_chg_pct = (day_chg / prev_converted) * 100
         else:
             day_chg = day_chg_pct = None
 
