@@ -6,6 +6,45 @@ news sentiment expander, education expander, CTA, disclaimer.
 
 import numpy as np
 import streamlit as st
+from utils.i18n import t
+
+SIGNAL_NAME_KEYS = {
+    "RSI": "signals.names.rsi",
+    "SMA Cross": "signals.names.sma_cross",
+    "Price vs SMA20": "signals.names.price_vs_sma20",
+    "Price vs SMA50": "signals.names.price_vs_sma50",
+    "5D Momentum": "signals.names.momentum_5d",
+    "20D Momentum": "signals.names.momentum_20d",
+    "MACD": "signals.names.macd",
+    "Bollinger": "signals.names.bollinger",
+    "Volume": "signals.names.volume",
+    "52W Range": "signals.names.range_52w",
+    "News": "signals.names.news",
+}
+
+RISK_TRANSLATION_KEYS = {
+    "High": "risk.high",
+    "Low-Medium": "risk.low_medium",
+    "Low–Medium": "risk.low_medium",
+    "Medium": "risk.medium",
+}
+
+
+def _translated_signal_name(name: str) -> str:
+    key = SIGNAL_NAME_KEYS.get(name)
+    return t(key) if key else name
+
+
+def _translated_signal_desc(desc) -> str:
+    if isinstance(desc, tuple) and len(desc) == 2:
+        key, params = desc
+        return t(key, **params) if params else t(key)
+    return str(desc)
+
+
+def _translated_risk(risk: str) -> str:
+    key = RISK_TRANSLATION_KEYS.get(risk)
+    return t(key) if key else risk
 
 
 # ── Rate-limit error ──────────────────────────────────────────────────────────
@@ -16,12 +55,11 @@ def render_rate_limit_error() -> None:
         "border:1px solid rgba(239,68,68,0.3);border-left:3px solid #ef4444;"
         "border-radius:12px;margin-top:12px'>"
         "<div style='font-size:1rem;font-weight:600;margin-bottom:6px'>"
-        "🚦 Market Data Temporarily Unavailable</div>"
+        f"{t('stock_view.rate_limit_title')}</div>"
         "<div style='font-size:0.875rem;color:#94a3b8;line-height:1.6'>"
-        "Yahoo Finance is rate-limiting requests from this server — this happens when many "
-        "users are active at the same time on shared cloud deployments.<br><br>"
-        "✅ <strong>Please wait 2 minutes and try again.</strong><br>"
-        "If the issue persists, try searching a different stock first, then come back."
+        f"{t('stock_view.rate_limit_message')}<br><br>"
+        f"<strong>{t('stock_view.rate_limit_action')}</strong><br>"
+        f"{t('stock_view.rate_limit_help')}"
         "</div></div>",
         unsafe_allow_html=True,
     )
@@ -46,7 +84,7 @@ def render_stock_header(company_name: str, ticker: str) -> None:
 # ── Price row ────────────────────────────────────────────────────────────────
 
 def render_price(curr_price: float, day_chg, day_chg_pct, sym: str, period: str = "1D") -> None:
-    price_str = f"{sym}{curr_price:,.2f}" if not np.isnan(curr_price) else "Price unavailable"
+    price_str = f"{sym}{curr_price:,.2f}" if not np.isnan(curr_price) else t("stock_view.price_unavailable")
 
     if day_chg is not None:
         clr   = "#22c55e" if day_chg >= 0 else "#ef4444"
@@ -79,11 +117,12 @@ def render_metric_cards(rec: str, conf: int, risk: str) -> None:
         "HOLD": "rgba(245,158,11,0.08)",
     }[rec]
 
+    rec_label = t(f"recommendations.{rec.lower()}")
     m1, m2, m3 = st.columns(3)
     for col, label, val, color, bg in [
-        (m1, "RECOMMENDATION", rec,        rec_clr,   rec_bg),
-        (m2, "CONFIDENCE",     f"{conf}%", "#38bdf8", "rgba(56,189,248,0.08)"),
-        (m3, "RISK",           risk,       "#a78bfa", "rgba(167,139,250,0.08)"),
+        (m1, t("analysis.metric_recommendation"), rec_label, rec_clr, rec_bg),
+        (m2, t("analysis.metric_confidence"), f"{conf}%", "#38bdf8", "rgba(56,189,248,0.08)"),
+        (m3, t("analysis.metric_risk"), _translated_risk(risk), "#a78bfa", "rgba(167,139,250,0.08)"),
     ]:
         col.markdown(
             f"<div style='background:{bg};border:1px solid {color}33;"
@@ -108,7 +147,7 @@ def render_score_bar(score_pct: float) -> None:
     st.markdown(
         f"<div style='margin-bottom:4px'>"
         f"<span style='font-size:0.78rem;font-weight:600;color:#94a3b8;"
-        f"letter-spacing:.06em;text-transform:uppercase'>Signal Score</span>"
+        f"letter-spacing:.06em;text-transform:uppercase'>{t('analysis.signal_score')}</span>"
         f"<span style='font-size:1rem;font-weight:700;color:{bclr};"
         f"margin-left:10px'>{score_pct:.0f} / 100</span>"
         f"</div>"
@@ -122,7 +161,7 @@ def render_score_bar(score_pct: float) -> None:
         f"</div>"
         f"<div style='display:flex;justify-content:space-between;"
         f"font-size:0.68rem;color:#475569;margin-top:4px'>"
-        f"<span>◀ SELL</span><span>HOLD</span><span>BUY ▶</span>"
+        f"<span>{t('analysis.signal_buy')}</span><span>{t('analysis.signal_hold')}</span><span>{t('analysis.signal_sell')}</span>"
         f"</div>",
         unsafe_allow_html=True,
     )
@@ -132,9 +171,9 @@ def render_score_bar(score_pct: float) -> None:
 
 def render_ai_summary(rec: str, summary: str) -> None:
     st.markdown(
-        "<p style='color:#94a3b8;font-size:0.78rem;font-weight:600;"
-        "letter-spacing:.06em;text-transform:uppercase;margin:8px 0 8px 0'>"
-        "🤖 AI Summary</p>",
+        f"<p style='color:#94a3b8;font-size:0.78rem;font-weight:600;"
+        f"letter-spacing:.06em;text-transform:uppercase;margin:8px 0 8px 0'>"
+        f"{t('analysis.ai_summary')}</p>",
         unsafe_allow_html=True,
     )
     if rec == "BUY":    st.success(summary)
@@ -146,15 +185,15 @@ def render_ai_summary(rec: str, summary: str) -> None:
 
 def render_signal_breakdown(signals: list, rsi: float, mom5: float,
                              sym: str, info: dict) -> None:
-    with st.expander("🔍 Full Signal Breakdown"):
+    with st.expander(t("analysis.signal_breakdown")):
         b_sigs = [(n, d) for n, v, w, d in signals if v ==  1]
         s_sigs = [(n, d) for n, v, w, d in signals if v == -1]
         n_sigs = [(n, d) for n, v, w, d in signals if v ==  0]
 
         for sigs, color, label in [
-            (b_sigs, "#22c55e", "🟢 Bullish Signals"),
-            (s_sigs, "#ef4444", "🔴 Bearish Signals"),
-            (n_sigs, "#94a3b8", "⚪ Neutral Signals"),
+            (b_sigs, "#22c55e", t("analysis.bullish_signals", count=len(b_sigs))),
+            (s_sigs, "#ef4444", t("analysis.bearish_signals", count=len(s_sigs))),
+            (n_sigs, "#94a3b8", f"⚪ {t('analysis.neutral_signals')}"),
         ]:
             if sigs:
                 st.markdown(
@@ -163,26 +202,36 @@ def render_signal_breakdown(signals: list, rsi: float, mom5: float,
                     unsafe_allow_html=True,
                 )
                 for nm, ds in sigs:
-                    st.markdown(f"- **{nm}**: {ds}")
+                    st.markdown(f"- **{_translated_signal_name(nm)}**: {_translated_signal_desc(ds)}")
 
         st.markdown("<hr>", unsafe_allow_html=True)
         ca, cb, cc, cd = st.columns(4)
         ca.metric("RSI (14)", f"{rsi:.1f}")
-        cb.metric("5D Return", f"{mom5:.1f}%")
+        cb.metric(t("analysis.return_5d"), f"{mom5:.1f}%")
         if w52h := info.get("fiftyTwoWeekHigh"):
-            cc.metric("52W High", f"{sym}{w52h:,.2f}")
+            cc.metric(t("analysis.high_52w"), f"{sym}{w52h:,.2f}")
         if w52l := info.get("fiftyTwoWeekLow"):
-            cd.metric("52W Low",  f"{sym}{w52l:,.2f}")
-        st.caption("⚠️ No algorithm predicts markets perfectly. Use this to support your own research.")
+            cd.metric(t("analysis.low_52w"),  f"{sym}{w52l:,.2f}")
+        st.caption(t("analysis.disclaimer_note"))
 
 
 # ── News sentiment expander ──────────────────────────────────────────────────
 
 def render_news(news_label: str, news_detail: list) -> None:
-    with st.expander(f"📰 News Sentiment — {news_label}"):
-        if "Positive" in news_label:   st.success(f"Sentiment: **{news_label}**")
-        elif "Negative" in news_label: st.error(f"Sentiment: **{news_label}**")
-        else:                          st.info(f"Sentiment: **{news_label}**")
+    # Translate basic sentiment labels when possible
+    translated_label = news_label
+    if news_label.lower().startswith("positive"):
+        translated_label = t("analysis.sentiment_positive")
+    elif news_label.lower().startswith("negative"):
+        translated_label = t("analysis.sentiment_negative")
+    elif news_label.lower().startswith("neutral"):
+        translated_label = t("analysis.sentiment_neutral")
+
+    with st.expander(f"{t('analysis.news_sentiment')} — {translated_label}"):
+        sentiment_text = t("analysis.sentiment_status", sentiment=translated_label)
+        if news_label.lower().startswith("positive"):   st.success(f"**{sentiment_text}**")
+        elif news_label.lower().startswith("negative"): st.error(f"**{sentiment_text}**")
+        else:                                            st.info(f"**{sentiment_text}**")
 
         for item in news_detail:
             kw_html  = (f" <span style='font-size:0.72rem;color:#64748b'>— {item['keywords']}</span>"
@@ -205,20 +254,8 @@ def render_news(news_label: str, news_detail: list) -> None:
 # ── Education expander ───────────────────────────────────────────────────────
 
 def render_education() -> None:
-    with st.expander("📚 What do these indicators mean?"):
-        st.markdown("""
-**RSI** — Below 30 = oversold (buy signal). Above 70 = overbought (sell risk).
-
-**SMA20 / SMA50** — Moving averages. SMA20 crossing above SMA50 = bullish golden cross.
-
-**MACD** — Momentum. Crossover above signal line = bullish shift.
-
-**Bollinger Bands** — Price near lower band = oversold. Near upper = overbought.
-
-**52-Week Range** — Near yearly low = potential value. Near yearly high = less upside buffer.
-
-**News Sentiment** — Headlines scanned for positive/negative keywords to gauge market mood.
-""")
+    with st.expander(t("analysis.education")):
+        st.markdown(t("analysis.education_content"))
 
 
 # ── CTA + disclaimer ─────────────────────────────────────────────────────────
@@ -226,14 +263,11 @@ def render_education() -> None:
 def render_cta() -> None:
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown(
-        "<p style='font-size:1rem;font-weight:600;margin-bottom:8px'>💼 Start Investing</p>"
-        "<p style='color:#94a3b8;font-size:0.85rem;margin-bottom:14px'>"
-        "Create an account via the link below to secure a welcome bonus.</p>",
+        f"<p style='font-size:1rem;font-weight:600;margin-bottom:8px'>{t('analysis.cta_title')}</p>"
+        f"<p style='color:#94a3b8;font-size:0.85rem;margin-bottom:14px'>"
+        f"{t('analysis.cta_description')}</p>",
         unsafe_allow_html=True,
     )
-    st.link_button("Join Trade Republic →", "https://refnocode.trade.re/wnk12lwn")
+    st.link_button(t("analysis.cta_button"), "https://refnocode.trade.re/wnk12lwn")
     st.markdown("<br>", unsafe_allow_html=True)
-    st.caption(
-        "⚠️ This tool is for educational and personal research purposes only. "
-        "No AI can predict markets perfectly. Always do your own due diligence before investing."
-    )
+    st.caption(t("analysis.cta_disclaimer"))

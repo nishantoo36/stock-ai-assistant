@@ -4,6 +4,7 @@ Search bar, result cards, and no-results feedback.
 
 import streamlit as st
 from utils.data import do_search
+from utils.i18n import t
 
 TYPE_ICON = {
     "EQUITY": "📈", "ETF": "📊", "MUTUALFUND": "🏦",
@@ -13,6 +14,12 @@ EXCH_LABEL = {
     "NSI": "🇮🇳 NSE", "BSE": "🇮🇳 BSE", "NMS": "🇺🇸 NASDAQ",
     "NYQ": "🇺🇸 NYSE", "LSE": "🇬🇧 LSE", "TOR": "🇨🇦 TSX",
 }
+
+CURRENCY_OPTIONS = ["CurrencySelector", "USD", "EUR", "INR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY", "SGD", "AED"]
+
+
+def _format_currency_option(value: str) -> str:
+    return t("search.currency_selector") if value == "CurrencySelector" else value
 
 
 def render_search_bar() -> str:
@@ -27,18 +34,19 @@ div[data-testid="stTextInput"]  > label { display: none !important; }
     col_curr, col_search, col_btn = st.columns([2, 5, 1])
     with col_curr:
         currency_option = st.selectbox(
-            "CurrencySelector",
-            ["CurrencySelector", "USD", "EUR", "INR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY", "SGD", "AED"],
+            t("search.currency_selector"),
+            CURRENCY_OPTIONS,
+            format_func=_format_currency_option,
             label_visibility="collapsed",
         )
     with col_search:
         search_text = st.text_input(
-            "Search",
-            placeholder="🔍  Search stock or ETF — e.g. Apple, Nvidia, Reliance…",
+            t("search.search"),
+            placeholder=t("search.placeholder"),
             label_visibility="collapsed",
         )
     with col_btn:
-        search_clicked = st.button("Search 🔍", width="stretch")
+        search_clicked = st.button(t("search.button"), width="stretch")
 
     if search_clicked and search_text:
         _execute_search(search_text)
@@ -47,7 +55,7 @@ div[data-testid="stTextInput"]  > label { display: none !important; }
 
 
 def _execute_search(search_text: str) -> None:
-    with st.spinner("Searching markets…"):
+    with st.spinner(t("search.searching")):
         try:
             res    = do_search(search_text)
             quotes = res.get("quotes", [])
@@ -65,7 +73,7 @@ def _execute_search(search_text: str) -> None:
             st.session_state.company_name       = None
             st.session_state.search_no_results  = search_text if not results else None
         except Exception as e:
-            st.error(f"Search error: {e}")
+            st.error(t("search.search_error", error=str(e)))
 
 
 def render_no_results() -> None:
@@ -75,10 +83,9 @@ def render_no_results() -> None:
             f"<div style='margin-top:16px;padding:16px 20px;"
             f"background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);"
             f"border-left:3px solid #f59e0b;border-radius:12px;font-size:0.9rem'>"
-            f"⚠️ No results found for <strong>'{q}'</strong>.<br>"
+            f"{t('search.no_results_title', query=q)}<br>"
             f"<span style='color:#94a3b8;font-size:0.82rem'>"
-            f"Try the full company name (e.g. <em>Apple</em>, <em>Reliance Industries</em>) "
-            f"or a ticker symbol (e.g. <em>AAPL</em>, <em>RELIANCE.NS</em>).</span>"
+            f"{t('search.no_results_help')}</span>"
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -90,9 +97,9 @@ def render_result_cards() -> None:
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown(
-        "<p style='color:#94a3b8;font-size:0.82rem;font-weight:500;"
-        "letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px'>"
-        "Select a stock</p>",
+        f"<p style='color:#94a3b8;font-size:0.82rem;font-weight:500;"
+        f"letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px'>"
+        f"{t('search.select_stock')}</p>",
         unsafe_allow_html=True,
     )
 
@@ -111,7 +118,7 @@ def render_result_cards() -> None:
 
 def render_change_stock_button() -> None:
     if st.session_state.selected_ticker:
-        if st.button("← Search different stock"):
+        if st.button(t("search.change_stock")):
             st.session_state.selected_ticker = None
             st.session_state.company_name    = None
             st.session_state.search_results  = []
