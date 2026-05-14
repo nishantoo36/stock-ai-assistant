@@ -25,30 +25,42 @@ def _calc_period_change(
     fx_rate: float,
     info: dict,
     live: dict,
+    period: str = "1D",
 ) -> tuple:
     """
     Return (absolute_change, pct_change) for the selected chart period.
-    Falls back to previousClose from fast_info, then from info dict.
+    - 1D: always uses previous_close (yesterday close → now = standard today % change)
+    - Other periods: uses first candle of chart data (period start → now)
     % is currency-neutral — fx_rate cancels in the ratio.
     """
     if np.isnan(curr_price):
         return None, None
 
-    # Period-aware: use first candle of chart data
+    def _chg(base_raw):
+        base = float(base_raw) * fx_rate
+        if base > 0:
+            c = curr_price - base
+            return c, (c / base) * 100
+        return None, None
+
+    # 1D: use previous_close so % matches "today's change" shown on Google/Bloomberg
+    if period == "1D":
+        prev = live.get("previous_close") or info.get("previousClose") or info.get("regularMarketPreviousClose")
+        if prev:
+            return _chg(prev)
+        return None, None
+
+    # Multi-day periods: use first candle of chart (period open → now)
     clean = df_chart.dropna(subset=["Close"]) if not df_chart.empty else pd.DataFrame()
     if len(clean) >= 2:
         first_raw = float(clean["Close"].iloc[0])
         if not np.isnan(first_raw) and first_raw > 0:
-            first_conv = first_raw * fx_rate
-            chg = curr_price - first_conv
-            return chg, (chg / first_conv) * 100
+            return _chg(first_raw)
 
-    # Fallback: previous_close from fast_info (fresher than info dict)
+    # Fallback for multi-day when chart empty
     prev = live.get("previous_close") or info.get("previousClose") or info.get("regularMarketPreviousClose")
     if prev:
-        prev_conv = float(prev) * fx_rate
-        chg = curr_price - prev_conv
-        return chg, (chg / prev_conv) * 100
+        return _chg(prev)
 
     return None, None
 
@@ -89,7 +101,7 @@ def render_stock_view(currency_option: str) -> None:
     disp_curr           = currency_option if currency_option != "Original" else orig_curr
     sym                 = get_currency_symbol(disp_curr)
 
-    day_chg, day_chg_pct = _calc_period_change(df_chart, curr_price, fx_rate, info, live)
+    day_chg, day_chg_pct = _calc_period_change(df_chart, curr_price, fx_rate, info, live, period)
 
     # Analysis
     (rec, conf, risk, summary, signals,
