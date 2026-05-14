@@ -10,6 +10,7 @@ import streamlit as st
 from utils.data           import load_stock_info, load_chart_data, load_analysis_data, load_news, load_live_price
 from utils.indicators     import get_last_close
 from utils.forex          import get_currency_symbol, convert_price
+from utils.i18n           import t
 from utils.recommendation import generate_recommendation
 from ui.chart             import render_period_selector, render_chart
 from ui.analysis          import (
@@ -82,7 +83,7 @@ def render_stock_view(currency_option: str) -> None:
 
     period = render_period_selector()
 
-    with st.spinner("Loading data and running analysis..."):
+    with st.spinner(t("stock_view.loading_analysis")):
         try:
             info = load_stock_info(ticker)
         except Exception:
@@ -100,11 +101,8 @@ def render_stock_view(currency_option: str) -> None:
     # that yfinance can't provide OHLCV data for, regardless of suffix.
     if not _has_price_data(df_analysis) and not _has_price_data(df_chart):
         st.warning(
-            f"⚠️ No price data is available for **{ticker}**.\n\n"
-            "This usually means the exchange doesn't provide public market data "
-            "(e.g. dark pools, alternative venues), or the ticker is delisted.\n\n"
-            "**Try selecting a different listing** for the same company — "
-            "for example the primary exchange (STO, NYSE, FRA, etc.)."
+            f"⚠️ {t('stock_view.no_price_data_title', ticker=ticker)}\n\n"
+            f"{t('stock_view.no_price_data_help')}"
         )
         st.stop()
 
