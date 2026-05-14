@@ -117,7 +117,7 @@ def render_stock_view(currency_option: str) -> None:
         raw_price = get_last_close(df_analysis, info)
 
     curr_price, fx_rate = convert_price(float(raw_price), orig_curr, currency_option)
-    disp_curr           = currency_option if currency_option != "Original" else orig_curr
+    disp_curr           = currency_option if currency_option != "CurrencySelector" else orig_curr
     sym                 = get_currency_symbol(disp_curr)
 
     day_chg, day_chg_pct = _calc_period_change(df_chart, curr_price, fx_rate, info, live, period)

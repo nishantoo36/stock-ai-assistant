@@ -9,7 +9,7 @@ CURRENCY_SYMBOLS = {
 }
 
 CURRENCY_OPTIONS = [
-    "Original", "USD", "EUR", "INR", "GBP",
+    "Currency", "USD", "EUR", "INR", "GBP",
     "JPY", "AUD", "CAD", "CHF", "CNY", "SGD", "AED",
 ]
 
@@ -24,7 +24,7 @@ def convert_price(amount: float, from_currency: str, to_currency: str) -> tuple[
     Returns (converted_amount, fx_rate).
     Falls back to original on error.
     """
-    if to_currency == "Original" or from_currency == to_currency:
+    if to_currency == "CurrencySelector" or from_currency == to_currency:
         return amount, 1.0
     try:
         rate = _converter.get_rate(from_currency, to_currency)
