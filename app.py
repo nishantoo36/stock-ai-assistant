@@ -230,6 +230,39 @@ h2, h3 { color: var(--text) !important; letter-spacing: -0.01em; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
+/* ── Light mode overrides ── */
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg:      #f8fafc;
+        --surface: #ffffff;
+        --surface2:#f1f5f9;
+        --border:  #e2e8f0;
+        --text:    #0f172a;
+        --muted:   #64748b;
+    }
+}
+/* Streamlit light theme — target Streamlit's own theme class too */
+[data-theme="light"] {
+    --bg:      #f8fafc !important;
+    --surface: #ffffff !important;
+    --surface2:#f1f5f9 !important;
+    --border:  #e2e8f0 !important;
+    --text:    #0f172a !important;
+    --muted:   #64748b !important;
+}
+/* Force input/select text to always be readable regardless of theme */
+.stTextInput > div > div > input,
+.stSelectbox > div > div,
+div[data-baseweb="select"] * {
+    color: var(--text) !important;
+    background: var(--surface) !important;
+    border-color: var(--border) !important;
+}
+.stTextInput > div > div > input::placeholder {
+    color: var(--muted) !important;
+    opacity: 1 !important;
+}
+
 /* ── Responsive columns ── */
 @media (max-width: 640px) {
     .metric-row [data-testid="column"] { min-width: 100% !important; }
@@ -266,6 +299,7 @@ for k, v in {
     "company_name": None,
     "search_results": [],
     "chart_period": "1D",
+    "search_no_results": None,
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -562,6 +596,24 @@ def load_news(company_name):
         for e in feed.entries[:15]
     ]
 
+@st.cache_data(ttl=3600)
+def load_stock_info(ticker):
+    """Cached stock.info with retry backoff to handle Yahoo Finance rate limits."""
+    import time
+    delays = [2, 5, 10]
+    last_err = None
+    for delay in delays:
+        try:
+            info = yf.Ticker(ticker).info
+            # yfinance sometimes returns an empty/stub dict on rate limit without raising
+            if info and len(info) > 5:
+                return info
+        except Exception as e:
+            last_err = e
+        time.sleep(delay)
+    # Final attempt — let it raise naturally if still failing
+    return yf.Ticker(ticker).info
+
 # ------------------------------------------------
 # APP HEADER
 # ------------------------------------------------
@@ -624,12 +676,30 @@ if search_clicked and search_text:
                     )
             st.session_state.selected_ticker = None
             st.session_state.company_name    = None
+            if not st.session_state.search_results:
+                st.session_state.search_no_results = search_text
+            else:
+                st.session_state.search_no_results = None
         except Exception as e:
             st.error(f"Search error: {e}")
 
 # ------------------------------------------------
 # STOCK RESULT CARDS
 # ------------------------------------------------
+
+if st.session_state.get("search_no_results") and not st.session_state.search_results and not st.session_state.selected_ticker:
+    q = st.session_state.search_no_results
+    st.markdown(
+        f"<div style='margin-top:16px;padding:16px 20px;background:rgba(245,158,11,0.08);"
+        f"border:1px solid rgba(245,158,11,0.3);border-left:3px solid #f59e0b;"
+        f"border-radius:12px;font-size:0.9rem'>"
+        f"⚠️ No results found for <strong>'{q}'</strong>.<br>"
+        f"<span style='color:#94a3b8;font-size:0.82rem'>Try searching with the full company name "
+        f"(e.g. <em>Apple</em>, <em>Reliance Industries</em>, <em>Nifty 50</em>) "
+        f"or a valid ticker symbol (e.g. <em>AAPL</em>, <em>RELIANCE.NS</em>).</span>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
 
 if st.session_state.search_results and not st.session_state.selected_ticker:
     st.markdown("<br>", unsafe_allow_html=True)
@@ -696,8 +766,23 @@ if st.session_state.selected_ticker:
         period = st.session_state.chart_period
 
         with st.spinner("Loading data and running analysis…"):
-            stock      = yf.Ticker(st.session_state.selected_ticker)
-            info       = stock.info
+            try:
+                info = load_stock_info(st.session_state.selected_ticker)
+            except Exception as e:
+                st.markdown(
+                    "<div style='padding:20px 22px;background:rgba(239,68,68,0.08);"
+                    "border:1px solid rgba(239,68,68,0.3);border-left:3px solid #ef4444;"
+                    "border-radius:12px;margin-top:12px'>"
+                    "<div style='font-size:1rem;font-weight:600;margin-bottom:6px'>🚦 Market Data Temporarily Unavailable</div>"
+                    "<div style='font-size:0.875rem;color:#94a3b8;line-height:1.6'>"
+                    "Yahoo Finance is rate-limiting requests from this server — this happens when many "
+                    "users are active at the same time on shared cloud deployments.<br><br>"
+                    "✅ <strong>Please wait 2 minutes and try again.</strong><br>"
+                    "If the issue persists, try searching a different stock first, then come back."
+                    "</div></div>",
+                    unsafe_allow_html=True
+                )
+                st.stop()
             orig_curr  = info.get("currency","USD")
             df_chart   = load_chart_data(st.session_state.selected_ticker, period)
             df_analysis= load_analysis_data(st.session_state.selected_ticker)
