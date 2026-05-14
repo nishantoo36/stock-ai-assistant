@@ -601,7 +601,7 @@ with col_search:
         label_visibility="collapsed"
     )
 with col_btn:
-    search_clicked = st.button("Search 🔍", use_container_width=True)
+    search_clicked = st.button("Search 🔍", width='stretch')
 
 # ------------------------------------------------
 # EXECUTE SEARCH → store results
@@ -653,7 +653,7 @@ if st.session_state.search_results and not st.session_state.selected_ticker:
         exch  = EXCH_LABEL.get(item["exchange"], item["exchange"])
         label = f"{icon} **{item['name']}**\n\n`{item['ticker']}` · {exch}"
         with cols[i % 2]:
-            if st.button(label, key=f"card_{i}", use_container_width=True):
+            if st.button(label, key=f"card_{i}", width='stretch'):
                 st.session_state.selected_ticker = item["ticker"]
                 st.session_state.company_name    = item["name"]
                 st.session_state.search_results  = []
@@ -688,7 +688,7 @@ if st.session_state.selected_ticker:
         for i, p in enumerate(CHART_PERIODS):
             with pcols[i]:
                 is_active = st.session_state.chart_period == p
-                if st.button(p, key=f"p_{p}", use_container_width=True,
+                if st.button(p, key=f"p_{p}", width='stretch',
                               type="primary" if is_active else "secondary"):
                     st.session_state.chart_period = p
                     st.rerun()
@@ -930,7 +930,7 @@ if st.session_state.selected_ticker:
                     </span>
                 </div>"""
             st.markdown(legend_html, unsafe_allow_html=True)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.warning("Chart data unavailable for selected period.")
 
