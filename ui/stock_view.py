@@ -19,6 +19,16 @@ from ui.analysis          import (
 )
 
 
+def _has_price_data(df: pd.DataFrame) -> bool:
+    """Return True only if the DataFrame has a usable Close column with real values."""
+    return (
+        df is not None
+        and not df.empty
+        and "Close" in df.columns
+        and df["Close"].notna().any()
+    )
+
+
 def _calc_period_change(
     df_chart: pd.DataFrame,
     curr_price: float,
@@ -85,8 +95,17 @@ def render_stock_view(currency_option: str) -> None:
         news        = load_news(company_name)
         live        = load_live_price(ticker)
 
-    if df_analysis.empty and df_chart.empty:
-        st.error("No market data available for this stock.")
+    # ── Dynamic guard: no usable price data from yfinance ────────────────────
+    # Catches dark pools, delisted tickers, restricted feeds — any exchange
+    # that yfinance can't provide OHLCV data for, regardless of suffix.
+    if not _has_price_data(df_analysis) and not _has_price_data(df_chart):
+        st.warning(
+            f"⚠️ No price data is available for **{ticker}**.\n\n"
+            "This usually means the exchange doesn't provide public market data "
+            "(e.g. dark pools, alternative venues), or the ticker is delisted.\n\n"
+            "**Try selecting a different listing** for the same company — "
+            "for example the primary exchange (STO, NYSE, FRA, etc.)."
+        )
         st.stop()
 
     if df_analysis.empty or len(df_analysis) < 10:
