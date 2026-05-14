@@ -45,7 +45,7 @@ def render_stock_header(company_name: str, ticker: str) -> None:
 
 # ── Price row ────────────────────────────────────────────────────────────────
 
-def render_price(curr_price: float, day_chg, day_chg_pct, sym: str) -> None:
+def render_price(curr_price: float, day_chg, day_chg_pct, sym: str, period: str = "1D") -> None:
     price_str = f"{sym}{curr_price:,.2f}" if not np.isnan(curr_price) else "Price unavailable"
 
     if day_chg is not None:
@@ -57,6 +57,7 @@ def render_price(curr_price: float, day_chg, day_chg_pct, sym: str) -> None:
             f"font-variant-numeric:tabular-nums;letter-spacing:-0.02em'>{price_str}</span>"
             f"<span style='color:{clr};font-size:clamp(0.85rem,2vw,1.05rem);font-weight:500'>"
             f"{arrow} {sym}{abs(day_chg):,.2f} ({day_chg_pct:+.2f}%)</span>"
+            f"<span style='color:#475569;font-size:0.78rem;font-weight:500'>{period}</span>"
             f"</div>",
             unsafe_allow_html=True,
         )

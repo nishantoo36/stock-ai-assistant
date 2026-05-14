@@ -51,15 +51,29 @@ def volume_trend(df: pd.DataFrame) -> int:
 
 def get_last_close(df: pd.DataFrame, stock_info: dict) -> float:
     """
-    NaN-safe last close price.
-    Falls back to stock_info fields if the DataFrame contains NaNs.
+    Live-price-first: prefer regularMarketPrice / currentPrice from stock_info
+    so we always show the real-time value, not yesterday's close from the
+    historical DataFrame. Falls back to the DataFrame when info has nothing.
     """
+    for key in ("regularMarketPrice", "currentPrice"):
+        val = stock_info.get(key)
+        if val is not None:
+            try:
+                fval = float(val)
+                if not np.isnan(fval) and fval > 0:
+                    return fval
+            except Exception:
+                pass
+
+    # Fallback: last row of historical data
     clean = df.dropna(subset=["Close"])
     if not clean.empty:
         val = clean["Close"].iloc[-1]
         if not np.isnan(val):
             return val
-    for key in ("regularMarketPrice", "currentPrice", "previousClose", "open"):
+
+    # Last resort: remaining info fields
+    for key in ("previousClose", "open"):
         val = stock_info.get(key)
         if val is not None:
             try:
@@ -68,4 +82,5 @@ def get_last_close(df: pd.DataFrame, stock_info: dict) -> float:
                     return fval
             except Exception:
                 pass
+
     return float("nan")

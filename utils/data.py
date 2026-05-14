@@ -77,6 +77,33 @@ def load_stock_info(ticker: str) -> dict:
     return info
 
 
+# ── Live price ───────────────────────────────────────────────────────────────
+
+TTL_LIVE = 60   # 60-second TTL — fast_info is lightweight, keep it fresh
+
+def _yf_fetch_live(ticker: str) -> dict:
+    fi = yf.Ticker(ticker).fast_info
+    return {
+        "price":          getattr(fi, "last_price",     None),
+        "previous_close": getattr(fi, "previous_close", None),
+    }
+
+
+def load_live_price(ticker: str) -> dict:
+    """Return {price, previous_close} with a 60-second cache."""
+    key    = f"live:{ticker}"
+    cached = cache_get(key, TTL_LIVE)
+    if cached:
+        return cached
+    stale = cache_get_stale(key)
+    if stale:
+        fetch_in_background(_yf_fetch_live, key, ticker)
+        return stale
+    data = _yf_fetch_live(ticker)
+    cache_set(key, data)
+    return data
+
+
 # ── Price history ─────────────────────────────────────────────────────────────
 
 def _yf_fetch_history(ticker: str, period: str, interval: str):
