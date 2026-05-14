@@ -28,7 +28,7 @@ div[data-testid="stTextInput"]  > label { display: none !important; }
     with col_curr:
         currency_option = st.selectbox(
             "Currency",
-            ["Original", "USD", "EUR", "INR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY", "SGD", "AED"],
+            ["Currency", "USD", "EUR", "INR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY", "SGD", "AED"],
             label_visibility="collapsed",
         )
     with col_search:
