@@ -212,6 +212,18 @@ h2, h3 { color: var(--text) !important; letter-spacing: -0.01em; }
 }
 .stLinkButton > a:hover { opacity: 0.88 !important; }
 
+/* ── News links ── */
+.news-link {
+    color: var(--text) !important;
+    text-decoration: none !important;
+    border-bottom: 1px solid var(--border) !important;
+    transition: color 0.15s, border-color 0.15s !important;
+}
+.news-link:hover {
+    color: var(--accent) !important;
+    border-color: var(--accent) !important;
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -324,14 +336,26 @@ def analyze_news_sentiment(news_list):
         t = a.get("title","").lower()
         pos = [w for w in POSITIVE_WORDS if w in t]
         neg = [w for w in NEGATIVE_WORDS if w in t]
+        entry = {
+            "title": a.get("title","")[:100],
+            "link":  a.get("link",""),
+            "publisher": a.get("publisher",""),
+        }
         if pos:
             total_pos += len(pos)
-            detail.append(f"✅ **{a['title'][:90]}** — positive: {', '.join(pos[:3])}")
+            entry["icon"]    = "✅"
+            entry["signal"]  = "positive"
+            entry["keywords"] = ", ".join(pos[:3])
         elif neg:
             total_neg += len(neg)
-            detail.append(f"🔴 **{a['title'][:90]}** — negative: {', '.join(neg[:3])}")
+            entry["icon"]    = "🔴"
+            entry["signal"]  = "negative"
+            entry["keywords"] = ", ".join(neg[:3])
         else:
-            detail.append(f"⚪ {a['title'][:90]}")
+            entry["icon"]    = "⚪"
+            entry["signal"]  = "neutral"
+            entry["keywords"] = ""
+        detail.append(entry)
     net = total_pos - total_neg
     if net >= 5:    return  2, "Very Positive", detail
     elif net >= 2:  return  1, "Positive",      detail
@@ -969,8 +993,27 @@ if st.session_state.selected_ticker:
             if "Positive" in news_label:   st.success(f"Sentiment: **{news_label}**")
             elif "Negative" in news_label: st.error(f"Sentiment: **{news_label}**")
             else:                          st.info(f"Sentiment: **{news_label}**")
-            for line in news_detail:
-                st.markdown(line)
+            for item in news_detail:
+                icon  = item["icon"]
+                title = item["title"]
+                link  = item["link"]
+                pub   = item["publisher"]
+                kw    = item["keywords"]
+                kw_html = (f" <span style='font-size:0.72rem;color:#64748b'>— {kw}</span>"
+                           if kw else "")
+                pub_html = (f" <span style='font-size:0.7rem;color:#475569'>· {pub}</span>"
+                            if pub else "")
+                if link:
+                    title_html = f"<a href='{link}' target='_blank' class='news-link'>{title}</a>"
+                else:
+                    title_html = title
+                st.markdown(
+                    f"<div style='padding:8px 0;border-bottom:1px solid #1a2235;"
+                    f"font-size:0.85rem;line-height:1.5'>"
+                    f"{icon} {title_html}{kw_html}{pub_html}"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
 
         # ── Education ──
         with st.expander("📚 What do these indicators mean?"):
