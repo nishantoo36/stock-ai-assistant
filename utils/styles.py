@@ -44,9 +44,9 @@ html, body, [class*="css"] {
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 0 0 24px 0;
+    padding: 0 0 18px 0;
     border-bottom: 1px solid var(--border);
-    margin-bottom: 28px;
+    margin-bottom: 22px;
 }
 .app-header-icon { font-size: 2rem; line-height: 1; }
 .app-header h1 {
@@ -182,6 +182,129 @@ h2, h3 { color: var(--text) !important; letter-spacing: -0.01em; }
     transition: color 0.15s, border-color 0.15s !important;
 }
 .news-link:hover { color: var(--accent) !important; border-color: var(--accent) !important; }
+.stock-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.chart-legend {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 4px 2px 8px 2px;
+    flex-wrap: wrap;
+}
+.chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: var(--text);
+    font-weight: 600;
+}
+.chart-legend-meta {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-family: var(--mono);
+}
+.chart-line-swatch {
+    display: inline-block;
+    width: 28px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px;
+}
+.chart-line-swatch-dash {
+    background: transparent;
+    border-top: 2px dashed var(--yellow);
+}
+.chart-line-swatch-dot {
+    background: transparent;
+    border-top: 2px dotted var(--purple);
+}
+.news-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+.news-keywords {
+    font-size: 0.72rem;
+    color: var(--muted);
+}
+.news-meta {
+    margin-top: 4px;
+    font-size: 0.72rem;
+    color: var(--muted);
+}
+
+/* ── Top actions and dialogs ── */
+.top-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    align-items: center;
+}
+.list-row-title {
+    color: var(--text);
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.35;
+}
+.list-row-meta {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    margin-top: 2px;
+}
+.notification-message {
+    color: var(--text);
+    font-size: 0.86rem;
+    margin-top: 6px;
+    line-height: 1.45;
+}
+.list-row-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 12px 0;
+}
+.login-section {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 0 0 20px 0;
+    background: var(--surface);
+}
+.login-link {
+    display: block;
+    color: var(--accent) !important;
+    text-decoration: none !important;
+    border: 1px solid rgba(56,189,248,0.28);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: rgba(56,189,248,0.08);
+    line-height: 1.4;
+}
+.login-link:hover {
+    border-color: var(--accent);
+    background: rgba(56,189,248,0.13);
+}
+.compact-login-link {
+    font-size: 0.84rem;
+    padding: 10px 12px;
+}
+div[data-testid="stPopover"] button,
+div[data-testid="stSelectbox"] {
+    min-width: 120px;
+}
+div[data-testid="stDialog"] div[role="dialog"] {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    max-width: min(860px, calc(100vw - 32px)) !important;
+}
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -217,6 +340,29 @@ div[data-baseweb="select"] * {
 @media (max-width: 640px) {
     .metric-row [data-testid="column"] { min-width: 100% !important; }
     .block-container { padding: 1rem 0.75rem !important; }
+    .app-header {
+        border-bottom: none;
+        margin-bottom: 8px;
+        padding-bottom: 4px;
+    }
+    .app-header p { display: none; }
+    div[data-testid="column"] {
+        min-width: 100% !important;
+    }
+    .stock-title-row {
+        margin-bottom: 6px;
+    }
+    .chart-legend {
+        gap: 10px;
+    }
+    div[data-testid="stDialog"] div[role="dialog"] {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
