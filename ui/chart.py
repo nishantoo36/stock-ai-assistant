@@ -35,7 +35,7 @@ def render_period_selector() -> str:
         with cols[i]:
             is_active = st.session_state.chart_period == p
             if st.button(
-                p, key=f"p_{p}", width="stretch",
+                p, key=f"p_{p}", use_container_width=True,
                 type="primary" if is_active else "secondary",
             ):
                 st.session_state.chart_period = p
@@ -244,7 +244,7 @@ def render_chart(df_chart: pd.DataFrame, df_analysis: pd.DataFrame,
     st.markdown(legend_html, unsafe_allow_html=True)
     st.plotly_chart(
         fig,
-        width="stretch",
+        use_container_width=True,
         config={
             "scrollZoom": False,
             "doubleClick": False,

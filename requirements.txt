@@ -6,3 +6,4 @@ numpy
 feedparser
 forex-python
 plotly
+supabase

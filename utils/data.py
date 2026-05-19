@@ -7,6 +7,9 @@ is hit once per ticker per TTL window across all users.
 import io
 import time
 import json
+from datetime import datetime
+from email.utils import parsedate_to_datetime
+from urllib.parse import quote_plus
 
 import pandas as pd
 import yfinance as yf
@@ -151,23 +154,134 @@ def load_analysis_data(ticker: str) -> pd.DataFrame:
 
 # ── News ──────────────────────────────────────────────────────────────────────
 
+_NEWS_REQUEST_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/125.0 Safari/537.36"
+    ),
+    "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+}
+
+
+def _format_news_date(entry) -> str:
+    published = getattr(entry, "published", "") or getattr(entry, "updated", "")
+    if not published:
+        return ""
+
+    try:
+        dt = parsedate_to_datetime(published)
+        if dt:
+            return dt.strftime("%b %d, %Y").replace(" 0", " ")
+    except Exception:
+        pass
+
+    try:
+        parsed = getattr(entry, "published_parsed", None) or getattr(entry, "updated_parsed", None)
+        if parsed:
+            return datetime(*parsed[:6]).strftime("%b %d, %Y").replace(" 0", " ")
+    except Exception:
+        pass
+
+    return published
+
+
+def _format_unix_news_date(timestamp) -> str:
+    if not timestamp:
+        return ""
+
+    try:
+        return datetime.fromtimestamp(int(timestamp)).strftime("%b %d, %Y").replace(" 0", " ")
+    except Exception:
+        return ""
+
+
 def _fetch_news_rss(query: str) -> list[dict]:
-    url  = f"https://news.google.com/rss/search?q={query}+stock"
-    feed = feedparser.parse(url)
+    encoded_query = quote_plus(f"{query} stock")
+    url = (
+        "https://news.google.com/rss/search"
+        f"?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
+    )
+    feed = feedparser.parse(url, request_headers=_NEWS_REQUEST_HEADERS)
+    if getattr(feed, "bozo", False) and not feed.entries:
+        return []
+
     return [
         {
             "title":     e.title,
             "link":      e.link,
             "publisher": e.source.title if hasattr(e, "source") else "Google News",
+            "published": _format_news_date(e),
         }
         for e in feed.entries[:15]
     ]
 
 
+def _fetch_news_yfinance(ticker: str) -> list[dict]:
+    if not ticker:
+        return []
+
+    try:
+        items = yf.Ticker(ticker).news or []
+    except Exception:
+        return []
+
+    results: list[dict] = []
+    for item in items[:15]:
+        content = item.get("content", {}) if isinstance(item.get("content"), dict) else {}
+        canonical_url = content.get("canonicalUrl", {})
+        if not isinstance(canonical_url, dict):
+            canonical_url = {}
+        provider = content.get("provider", {})
+        if not isinstance(provider, dict):
+            provider = {}
+
+        title = item.get("title") or content.get("title") or ""
+        link = item.get("link") or canonical_url.get("url", "")
+        publisher = (
+            item.get("publisher")
+            or provider.get("displayName")
+            or provider.get("name")
+            or "Yahoo Finance"
+        )
+        published = (
+            item.get("providerPublishTime")
+            or item.get("pubDate")
+            or content.get("pubDate")
+            or content.get("displayTime")
+        )
+
+        if not title:
+            continue
+
+        results.append(
+            {
+                "title": title,
+                "link": link,
+                "publisher": publisher,
+                "published": (
+                    _format_unix_news_date(published)
+                    if isinstance(published, (int, float, str)) and str(published).isdigit()
+                    else str(published or "")
+                ),
+            }
+        )
+
+    return results
+
+
 @st.cache_data(ttl=TTL_NEWS)
 def load_news(company_name: str, ticker: str = "") -> list[dict]:
-    q       = company_name.replace(" ", "+")
-    results = _fetch_news_rss(q)
-    if not results and ticker:
-        results = _fetch_news_rss(ticker)
-    return results
+    queries = [company_name, ticker, ticker.split(".")[0] if ticker else ""]
+    seen: set[str] = set()
+
+    for query in queries:
+        query = (query or "").strip()
+        if not query or query.lower() in seen:
+            continue
+        seen.add(query.lower())
+        results = _fetch_news_rss(query)
+        if results:
+            return results
+
+    return _fetch_news_yfinance(ticker)

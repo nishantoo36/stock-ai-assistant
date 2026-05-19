@@ -128,34 +128,18 @@ def render_stock_actions(ticker: str, company_name: str | None) -> None:
         st.error(t("user_stocks.load_watchlist_error", error=str(exc)))
         return
 
-    col_save, col_watch = st.columns(2)
-    with col_save:
-        save_label = t("user_stocks.unsave_search") if saved else t("user_stocks.save_search")
-        if st.button(save_label, width="stretch", key=f"save_search_{ticker}"):
-            try:
-                if saved:
-                    remove_saved_stock(ticker)
-                    st.success(t("user_stocks.unsaved_search"))
-                else:
-                    save_searched_stock(ticker, company_name)
-                    st.success(t("user_stocks.saved_search"))
-                st.rerun()
-            except (SupabaseConfigError, Exception) as exc:
-                st.error(t("user_stocks.save_error", error=str(exc)))
-
-    with col_watch:
-        watch_label = t("user_stocks.remove_watchlist") if watched else t("user_stocks.add_watchlist")
-        if st.button(watch_label, width="stretch", key=f"watchlist_{ticker}"):
-            try:
-                if watched:
-                    remove_from_watchlist(ticker)
-                    st.success(t("user_stocks.watchlist_removed"))
-                else:
-                    add_to_watchlist(ticker, company_name)
-                    st.success(t("user_stocks.watchlist_added"))
-                st.rerun()
-            except (SupabaseConfigError, Exception) as exc:
-                st.error(t("user_stocks.watchlist_error", error=str(exc)))
+    watch_label = t("user_stocks.remove_watchlist") if watched else t("user_stocks.add_watchlist")
+    if st.button(watch_label, use_container_width=True, key=f"watchlist_{ticker}"):
+        try:
+            if watched:
+                remove_from_watchlist(ticker)
+                st.success(t("user_stocks.watchlist_removed"))
+            else:
+                add_to_watchlist(ticker, company_name)
+                st.success(t("user_stocks.watchlist_added"))
+            st.rerun()
+        except (SupabaseConfigError, Exception) as exc:
+            st.error(t("user_stocks.watchlist_error", error=str(exc)))
 
 
 def render_watchlist_preview(limit: int = 8) -> None:
@@ -243,7 +227,11 @@ def _render_watchlist_page() -> None:
             st.session_state[page_key] = max(page - 1, 0)
             st.rerun()
     with page_col:
-        st.caption(t("common.page", page=page + 1))
+        st.markdown(
+            f"<div style='text-align:center;font-size:0.95rem;color:var(--muted)'>"
+            f"{t('common.page', page=page + 1)}</div>",
+            unsafe_allow_html=True,
+        )
     with next_col:
         if st.button(t("common.next"), disabled=not has_next, use_container_width=True, key="watchlist_next"):
             st.session_state[page_key] = page + 1

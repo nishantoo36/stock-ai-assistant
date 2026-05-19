@@ -247,6 +247,18 @@ h2, h3 { color: var(--text) !important; letter-spacing: -0.01em; }
     gap: 8px;
     align-items: center;
 }
+/* Ensure top action columns' inner content stretches and aligns */
+.top-actions [data-testid="column"] {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px;
+}
+/* Make header action buttons fill their column and match widths */
+.top-actions .stButton > button,
+.top-actions .stLinkButton > a,
+.top-actions .stSelectbox > div > div {
+    width: 100% !important;
+}
 .list-row-title {
     color: var(--text);
     font-size: 0.95rem;
@@ -295,7 +307,41 @@ h2, h3 { color: var(--text) !important; letter-spacing: -0.01em; }
     font-size: 0.84rem;
     padding: 10px 12px;
 }
+div[data-testid="stPopover"] {
+    z-index: 9999;
+    min-width: 0;
+}
+div[data-testid="stPopover"] button {
+    min-width: 104px;
+    white-space: normal;
+}
+/* Make popover trigger fill its column when used inside header/actions */
+div[data-testid="stPopover"] > button {
+    width: 100% !important;
+}
+div[data-testid="stPopoverBody"],
+div[data-testid="stPopoverContent"] {
+    min-width: min(320px, calc(100vw - 36px)) !important;
+    max-width: min(360px, calc(100vw - 36px)) !important;
+    padding: 16px !important;
+}
+div[data-testid="stPopoverBody"] div[data-testid="stNumberInput"],
+div[data-testid="stPopoverBody"] div[data-testid="stSelectbox"],
+div[data-testid="stPopoverContent"] div[data-testid="stNumberInput"],
+div[data-testid="stPopoverContent"] div[data-testid="stSelectbox"] {
+    width: 100% !important;
+    min-width: 0 !important;
+}
+div[data-testid="stPopoverBody"] input,
+div[data-testid="stPopoverContent"] input {
+    min-width: 0 !important;
+}
+div[data-testid="stPopover"] + div button,
 div[data-testid="stPopover"] button,
+.stButton > button {
+    min-height: 48px;
+    align-items: center;
+}
 div[data-testid="stSelectbox"] {
     min-width: 120px;
 }

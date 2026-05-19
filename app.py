@@ -8,7 +8,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-from ui.auth import is_logged_in, restore_auth_session, store_auth_session
+from ui.auth import LOGOUT_FLAG, is_logged_in, restore_auth_session, store_auth_session
 
 
 def _attr(obj, name, default=None):
@@ -57,6 +57,7 @@ def _handle_auth_callback() -> None:
         return
 
     if access_token:
+        st.session_state.pop(LOGOUT_FLAG, None)
         st.session_state.auth_session = {
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -70,6 +71,7 @@ def _handle_auth_callback() -> None:
                 st.session_state.auth_user = {
                     "id": _attr(user_info.user, "id", ""),
                     "email": _attr(user_info.user, "email", ""),
+                    "phone": _attr(user_info.user, "phone", ""),
                 }
         except Exception:
             pass  # Continue anyway, user will be authenticated
@@ -135,7 +137,8 @@ if _query_param(st.query_params, "auth"):
     st.query_params.pop("auth", None)
 
 # ── Header ────────────────────────────────────────────────────────────────────
-header_col, action_col = st.columns([1.45, 1], vertical_alignment="center")
+header_ratio = [1.05, 1.65] if is_logged_in() else [1.45, 1]
+header_col, action_col = st.columns(header_ratio, vertical_alignment="center")
 with header_col:
     st.markdown("""
     <div class="app-header">
@@ -148,9 +151,8 @@ with header_col:
     """.format(title=t("app.title"), subtitle=t("app.subtitle")), unsafe_allow_html=True)
 
 with action_col:
-    st.markdown("<div class='top-actions'>", unsafe_allow_html=True)
     if is_logged_in():
-        lang_col, watch_col, notif_col, account_col = st.columns([1.35, 1.15, 1.15, 1.2])
+        lang_col, watch_col, notif_col, account_col = st.columns([1.15, 1.15, 1.15, 1.0])
         with lang_col:
             render_language_selector()
         with watch_col:
@@ -165,7 +167,6 @@ with action_col:
             render_language_selector()
         with account_col:
             render_auth_panel()
-    st.markdown("</div>", unsafe_allow_html=True)
 
 if st.session_state.get("show_login") and not is_logged_in():
     render_login_section()

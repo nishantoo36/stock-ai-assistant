@@ -56,6 +56,7 @@ def analyze_news_sentiment(news_list: list) -> tuple[int, str, list]:
             "title":     article.get("title", "")[:100],
             "link":      article.get("link", ""),
             "publisher": article.get("publisher", ""),
+            "published": article.get("published", ""),
         }
 
         if pos_hits:
