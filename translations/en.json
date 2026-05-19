@@ -57,6 +57,7 @@
     "sentiment_neutral": "Neutral",
     "sentiment_status": "Sentiment: {sentiment}",
     "sentiment_label": "{sentiment}: {count} articles",
+    "no_news_found": "No recent news articles found for this stock. The sentiment is marked as Neutral by default.",
     "return_5d": "5D Return",
     "high_52w": "52W High",
     "low_52w": "52W Low",

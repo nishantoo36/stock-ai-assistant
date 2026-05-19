@@ -57,6 +57,7 @@
     "sentiment_neutral": "તટસ્થ",
     "sentiment_status": "વલણ: {sentiment}",
     "sentiment_label": "{sentiment}: {count} લેખ",
+    "no_news_found": "આ સ્ટૉક માટે કોઈ તાજેતરના સમાચાર લેખ મળ્યા નથી। વલણ ડિફૉલ્ટ રૂપે તટસ્થ તરીકે ચિહ્નિત છે.",
     "return_5d": "5D રિટર્ન",
     "high_52w": "52W ઊંચું",
     "low_52w": "52W નીચું",

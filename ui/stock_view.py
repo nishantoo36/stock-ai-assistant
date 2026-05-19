@@ -93,7 +93,7 @@ def render_stock_view(currency_option: str) -> None:
         orig_curr   = info.get("currency", "USD")
         df_chart    = load_chart_data(ticker, period)
         df_analysis = load_analysis_data(ticker)
-        news        = load_news(company_name)
+        news        = load_news(company_name, ticker)
         live        = load_live_price(ticker)
 
     # ── Dynamic guard: no usable price data from yfinance ────────────────────
