@@ -8,7 +8,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-from ui.auth import LOGOUT_FLAG, is_logged_in, restore_auth_session, store_auth_session
+from ui.auth import (
+    LOGOUT_FLAG,
+    is_logged_in,
+    persist_current_auth_session,
+    restore_auth_session,
+    store_auth_session,
+)
 
 
 def _attr(obj, name, default=None):
@@ -92,6 +98,7 @@ from ui.user_stocks import render_watchlist_button
 
 inject_css()
 restore_auth_session()
+persist_current_auth_session()
 
 # ── Always-visible language selector ─────────────────────────────────────────
 def render_language_selector() -> None:

@@ -55,6 +55,15 @@ def _clear_persistent_auth_session() -> None:
     components.html(_cookie_script(clear=True), height=1, width=1)
 
 
+def persist_current_auth_session() -> None:
+    """Keep auth cookies in sync after normal Streamlit reruns."""
+    if st.session_state.get(LOGOUT_FLAG) or not is_logged_in():
+        return
+
+    session = st.session_state.get("auth_session", {})
+    _persist_auth_session(session.get("access_token"), session.get("refresh_token"))
+
+
 def store_auth_session(response: Any) -> bool:
     session = _attr(response, "session")
     user = _attr(response, "user")
@@ -74,7 +83,6 @@ def store_auth_session(response: Any) -> bool:
         "refresh_token": refresh_token,
     }
     st.session_state.pop(LOGOUT_FLAG, None)
-    _persist_auth_session(access_token, refresh_token)
     return True
 
 
