@@ -1,37 +1,22 @@
 """
-Login, signup, and logout UI backed by Supabase Auth - Social Login Only.
+Login, signup, and logout UI backed by Supabase Auth.
 """
 
 from __future__ import annotations
-import re
 from typing import Any
 import streamlit as st
 import streamlit.components.v1 as components
 
 from utils.i18n import t
 from utils.supabase_client import (
-    SupabaseConfigError,
     get_public_supabase_client,
-    send_phone_otp,
     sign_in_with_google,
-    verify_phone_otp,
 )
 
 SESSION_COOKIE_HOURS = 4
 ACCESS_COOKIE = "stock_ai_access_token"
 REFRESH_COOKIE = "stock_ai_refresh_token"
 LOGOUT_FLAG = "auth_logout_requested"
-
-COUNTRY_CODE_OPTIONS = {
-    "🇺🇸 +1": "+1",
-    "🇮🇳 +91": "+91",
-    "🇬🇧 +44": "+44",
-    "🇫🇷 +33": "+33",
-    "🇦🇺 +61": "+61",
-    "🇦🇪 +971": "+971",
-    "🇯🇵 +81": "+81",
-    "Custom": "",
-}
 
 
 def _attr(obj: Any, name: str, default: Any = None) -> Any:
@@ -132,76 +117,7 @@ def logout() -> None:
     st.session_state[LOGOUT_FLAG] = True
 
 
-def _format_phone_number(country_code: str, phone_number: str) -> str:
-    code_digits = re.sub(r"\D", "", country_code)
-    phone_digits = re.sub(r"\D", "", phone_number)
-    if not code_digits or not phone_digits:
-        return ""
-    return f"+{code_digits}{phone_digits}"
-
-
-def _render_phone_sign_in(key_prefix: str) -> None:
-    st.markdown("#### Phone sign in")
-    country_label = st.selectbox(
-        "Country code",
-        list(COUNTRY_CODE_OPTIONS.keys()),
-        key=f"{key_prefix}_phone_country",
-        label_visibility="collapsed",
-    )
-
-    country_code = COUNTRY_CODE_OPTIONS[country_label]
-    if country_label == "Custom":
-        country_code = st.text_input(
-            "Country code",
-            placeholder="+1",
-            key=f"{key_prefix}_phone_custom_country",
-        )
-
-    phone_number = st.text_input(
-        "Phone number",
-        placeholder="Phone number",
-        key=f"{key_prefix}_phone_number",
-    )
-    full_phone = _format_phone_number(country_code, phone_number)
-
-    if st.button("Send code", key=f"{key_prefix}_send_phone_otp", use_container_width=True):
-        if not full_phone:
-            st.error("Enter a country code and phone number.")
-        else:
-            try:
-                send_phone_otp(full_phone)
-                st.session_state[f"{key_prefix}_phone_pending"] = full_phone
-                st.success(f"Code sent to {full_phone}.")
-            except SupabaseConfigError as exc:
-                st.error(str(exc))
-
-    pending_phone = st.session_state.get(f"{key_prefix}_phone_pending")
-    if not pending_phone:
-        return
-
-    otp = st.text_input(
-        "Verification code",
-        placeholder="6-digit code",
-        key=f"{key_prefix}_phone_otp",
-    )
-    if st.button("Verify code", key=f"{key_prefix}_verify_phone_otp", use_container_width=True):
-        if not otp.strip():
-            st.error("Enter the verification code.")
-            return
-
-        try:
-            response = verify_phone_otp(pending_phone, otp.strip())
-            if store_auth_session(response):
-                st.session_state.pop(f"{key_prefix}_phone_pending", None)
-                st.success("Signed in successfully.")
-                st.rerun()
-            else:
-                st.error("Could not complete phone sign-in.")
-        except SupabaseConfigError as exc:
-            st.error(str(exc))
-
-
-def _render_social_buttons(key_prefix: str = "auth") -> None:
+def _render_sign_in_options(key_prefix: str = "auth") -> None:
     """Render available sign-in methods."""
     st.markdown("### 🔐 Quick Sign In")
 
@@ -236,8 +152,7 @@ def render_auth_panel() -> None:
                 st.rerun()
             return
 
-        # Show only social login buttons
-        _render_social_buttons("account")
+        _render_sign_in_options("account")
 
 
 def render_login_section() -> None:
@@ -249,7 +164,7 @@ def render_login_section() -> None:
     with st.container(border=True):
         col_body, col_close = st.columns([5, 1])
         with col_body:
-            _render_social_buttons("inline")
+            _render_sign_in_options("inline")
         with col_close:
             if st.button("X", key="close_inline_login", use_container_width=True):
                 st.session_state.show_login = False

@@ -127,35 +127,3 @@ def sign_in_with_google() -> dict[str, Any]:
         return response
     except Exception as exc:
         raise SupabaseConfigError(f"Google OAuth failed: {str(exc)}") from exc
-
-
-def send_phone_otp(phone: str) -> Any:
-    """Send a Supabase phone OTP to an E.164 phone number."""
-    try:
-        client = get_public_supabase_client()
-        return client.auth.sign_in_with_otp(
-            {
-                "phone": phone,
-                "options": {
-                    "channel": "sms",
-                    "should_create_user": True,
-                },
-            }
-        )
-    except Exception as exc:
-        raise SupabaseConfigError(f"Phone sign-in failed: {str(exc)}") from exc
-
-
-def verify_phone_otp(phone: str, token: str) -> Any:
-    """Verify a Supabase phone OTP and return an auth session."""
-    try:
-        client = get_public_supabase_client()
-        return client.auth.verify_otp(
-            {
-                "phone": phone,
-                "token": token,
-                "type": "sms",
-            }
-        )
-    except Exception as exc:
-        raise SupabaseConfigError(f"Phone verification failed: {str(exc)}") from exc
