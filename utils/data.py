@@ -151,10 +151,8 @@ def load_analysis_data(ticker: str) -> pd.DataFrame:
 
 # ── News ──────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=TTL_NEWS)
-def load_news(company_name: str) -> list[dict]:
-    q    = company_name.replace(" ", "+")
-    url  = f"https://news.google.com/rss/search?q={q}+stock"
+def _fetch_news_rss(query: str) -> list[dict]:
+    url  = f"https://news.google.com/rss/search?q={query}+stock"
     feed = feedparser.parse(url)
     return [
         {
@@ -164,3 +162,12 @@ def load_news(company_name: str) -> list[dict]:
         }
         for e in feed.entries[:15]
     ]
+
+
+@st.cache_data(ttl=TTL_NEWS)
+def load_news(company_name: str, ticker: str = "") -> list[dict]:
+    q       = company_name.replace(" ", "+")
+    results = _fetch_news_rss(q)
+    if not results and ticker:
+        results = _fetch_news_rss(ticker)
+    return results
