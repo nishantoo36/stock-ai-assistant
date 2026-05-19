@@ -13,11 +13,13 @@ from utils.forex          import get_currency_symbol, convert_price
 from utils.i18n           import t
 from utils.recommendation import generate_recommendation
 from ui.chart             import render_period_selector, render_chart
+from ui.alerts            import render_alert_form
 from ui.analysis          import (
     render_rate_limit_error, render_stock_header, render_price,
     render_metric_cards, render_score_bar, render_ai_summary,
     render_signal_breakdown, render_news, render_education, render_cta,
 )
+from ui.user_stocks       import render_stock_actions
 
 
 def _has_price_data(df: pd.DataFrame) -> bool:
@@ -93,7 +95,7 @@ def render_stock_view(currency_option: str) -> None:
         orig_curr   = info.get("currency", "USD")
         df_chart    = load_chart_data(ticker, period)
         df_analysis = load_analysis_data(ticker)
-        news        = load_news(company_name)
+        news        = load_news(company_name, ticker)
         live        = load_live_price(ticker)
 
     # ── Dynamic guard: no usable price data from yfinance ────────────────────
@@ -119,6 +121,10 @@ def render_stock_view(currency_option: str) -> None:
     sym                 = get_currency_symbol(disp_curr)
 
     day_chg, day_chg_pct = _calc_period_change(df_chart, curr_price, fx_rate, info, live, period)
+    prev_raw = live.get("previous_close") or info.get("previousClose") or info.get("regularMarketPreviousClose")
+    previous_close = None
+    if prev_raw:
+        previous_close, _ = convert_price(float(prev_raw), orig_curr, currency_option)
 
     # Analysis
     (rec, conf, risk, summary, signals,
@@ -127,7 +133,16 @@ def render_stock_view(currency_option: str) -> None:
     ) = generate_recommendation(df_analysis, info, news)
 
     # Render
-    render_stock_header(company_name, ticker)
+    st.markdown("<hr>", unsafe_allow_html=True)
+    title_col, actions_col = st.columns([1.35, 1.25], vertical_alignment="center")
+    with title_col:
+        render_stock_header(company_name, ticker)
+    with actions_col:
+        save_col, alert_col = st.columns([1, 1], vertical_alignment="center")
+        with save_col:
+            render_stock_actions(ticker, company_name)
+        with alert_col:
+            render_alert_form(ticker, company_name, None if np.isnan(curr_price) else curr_price)
     render_price(curr_price, day_chg, day_chg_pct, sym, period)
     render_metric_cards(rec, conf, risk)
 
@@ -135,7 +150,14 @@ def render_stock_view(currency_option: str) -> None:
     render_score_bar(score_pct)
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    render_chart(df_chart, df_analysis, period, disp_curr)
+    render_chart(
+        df_chart,
+        df_analysis,
+        period,
+        disp_curr,
+        previous_close=previous_close,
+        exchange_timezone=info.get("exchangeTimezoneName"),
+    )
     render_ai_summary(rec, summary)
     st.markdown("<br>", unsafe_allow_html=True)
 

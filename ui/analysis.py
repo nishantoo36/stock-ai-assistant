@@ -4,6 +4,8 @@ metric cards, signal score bar, signal breakdown expander,
 news sentiment expander, education expander, CTA, disclaimer.
 """
 
+from html import escape
+
 import numpy as np
 import streamlit as st
 from utils.i18n import t
@@ -68,9 +70,8 @@ def render_rate_limit_error() -> None:
 # ── Stock header ─────────────────────────────────────────────────────────────
 
 def render_stock_header(company_name: str, ticker: str) -> None:
-    st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown(
-        f"<div style='display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px'>"
+        f"<div class='stock-title-row'>"
         f"<span style='font-size:clamp(1.3rem,3vw,1.6rem);font-weight:700;"
         f"letter-spacing:-0.02em'>{company_name}</span>"
         f"<span style='font-family:var(--mono,monospace);font-size:0.85rem;"
@@ -233,19 +234,32 @@ def render_news(news_label: str, news_detail: list) -> None:
         elif news_label.lower().startswith("negative"): st.error(f"**{sentiment_text}**")
         else:                                            st.info(f"**{sentiment_text}**")
 
+        if not news_detail:
+            st.markdown(
+                f"<div style='padding:14px 0;font-size:0.85rem;color:#64748b'>"
+                f"{t('analysis.no_news_found')}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
         for item in news_detail:
-            kw_html  = (f" <span style='font-size:0.72rem;color:#64748b'>— {item['keywords']}</span>"
-                        if item["keywords"] else "")
-            pub_html = (f" <span style='font-size:0.7rem;color:#475569'>· {item['publisher']}</span>"
-                        if item["publisher"] else "")
+            keywords = escape(item.get("keywords", ""))
+            publisher = escape(item.get("publisher", ""))
+            published = escape(item.get("published", ""))
+            title = escape(item.get("title", ""))
+            link = escape(item.get("link", ""), quote=True)
+            metadata = " · ".join(part for part in [publisher, published] if part)
+            kw_html  = (f" <span class='news-keywords'>— {keywords}</span>"
+                        if keywords else "")
+            meta_html = (f"<div class='news-meta'>{metadata}</div>" if metadata else "")
             title_html = (
-                f"<a href='{item['link']}' target='_blank' class='news-link'>{item['title']}</a>"
-                if item["link"] else item["title"]
+                f"<a href='{link}' target='_blank' class='news-link'>{title}</a>"
+                if link else title
             )
             st.markdown(
-                f"<div style='padding:8px 0;border-bottom:1px solid #1a2235;"
-                f"font-size:0.85rem;line-height:1.5'>"
-                f"{item['icon']} {title_html}{kw_html}{pub_html}"
+                f"<div class='news-item'>"
+                f"<div>{item.get('icon', '')} {title_html}{kw_html}</div>"
+                f"{meta_html}"
                 f"</div>",
                 unsafe_allow_html=True,
             )

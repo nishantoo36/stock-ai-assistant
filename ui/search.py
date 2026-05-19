@@ -46,7 +46,7 @@ div[data-testid="stTextInput"]  > label { display: none !important; }
             label_visibility="collapsed",
         )
     with col_btn:
-        search_clicked = st.button(t("search.button"), width="stretch")
+        search_clicked = st.button(t("search.button"), use_container_width=True)
 
     if search_clicked and search_text:
         _execute_search(search_text)
@@ -109,7 +109,7 @@ def render_result_cards() -> None:
         exch  = EXCH_LABEL.get(item["exchange"], item["exchange"])
         label = f"{icon} **{item['name']}**\n\n`{item['ticker']}` · {exch}"
         with cols[i % 2]:
-            if st.button(label, key=f"card_{i}", width="stretch"):
+            if st.button(label, key=f"card_{i}", use_container_width=True):
                 st.session_state.selected_ticker = item["ticker"]
                 st.session_state.company_name    = item["name"]
                 st.session_state.search_results  = []
