@@ -233,6 +233,14 @@ def render_news(news_label: str, news_detail: list) -> None:
         elif news_label.lower().startswith("negative"): st.error(f"**{sentiment_text}**")
         else:                                            st.info(f"**{sentiment_text}**")
 
+        if not news_detail:
+            st.markdown(
+                f"<div style='padding:14px 0;font-size:0.85rem;color:#64748b'>"
+                f"{t('analysis.no_news_found')}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
         for item in news_detail:
             kw_html  = (f" <span style='font-size:0.72rem;color:#64748b'>— {item['keywords']}</span>"
                         if item["keywords"] else "")

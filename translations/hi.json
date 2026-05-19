@@ -57,6 +57,7 @@
     "sentiment_neutral": "तटस्थ",
     "sentiment_status": "रुझान: {sentiment}",
     "sentiment_label": "{sentiment}: {count} लेख",
+    "no_news_found": "इस स्टॉक के लिए कोई हालिया समाचार लेख नहीं मिला। रुझान डिफ़ॉल्ट रूप से तटस्थ के रूप में चिह्नित है।",
     "return_5d": "5D रिटर्न",
     "high_52w": "52W उच्च",
     "low_52w": "52W निम्न",

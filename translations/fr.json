@@ -57,6 +57,7 @@
     "sentiment_neutral": "Neutre",
     "sentiment_status": "Sentiment : {sentiment}",
     "sentiment_label": "{sentiment}: {count} articles",
+    "no_news_found": "Aucun article d'actualité récent trouvé pour cette action. Le sentiment est marqué Neutre par défaut.",
     "return_5d": "Rendement 5 j",
     "high_52w": "Plus haut 52 sem.",
     "low_52w": "Plus bas 52 sem.",
