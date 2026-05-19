@@ -7,6 +7,7 @@ service-role key must never be placed in st.secrets for this app.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 from urllib.parse import urlparse
 
@@ -18,7 +19,7 @@ class SupabaseConfigError(RuntimeError):
 
 
 def _get_secret(name: str) -> str:
-    value = st.secrets.get(name, "")
+    value = st.secrets.get(name, "") or os.environ.get(name, "")
     return str(value).strip() if value else ""
 
 
@@ -33,14 +34,14 @@ def _validate_url(url: str, setting_name: str) -> str:
 
 
 def get_supabase_config() -> tuple[str, str]:
-    """Return Supabase URL and anon/publishable key from Streamlit secrets."""
+    """Return Supabase URL and anon/publishable key from secrets or env vars."""
     url = _get_secret("SUPABASE_URL")
     key = _get_secret("SUPABASE_ANON_KEY")
 
     if not url or not key:
         raise SupabaseConfigError(
-            "Supabase is not configured. Add SUPABASE_URL and "
-            "SUPABASE_ANON_KEY to .streamlit/secrets.toml."
+            "Supabase is not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY "
+            "to Streamlit secrets or deployment environment variables."
         )
 
     return _validate_url(url, "SUPABASE_URL"), key
@@ -50,7 +51,8 @@ def get_auth_redirect_url() -> str:
     """
     Return the local/deployed app URL Supabase should redirect back to.
 
-    Configure APP_URL in .streamlit/secrets.toml for deployed environments.
+    Configure APP_URL in Streamlit secrets or deployment environment variables
+    for deployed environments.
     """
     current_url = getattr(st.context, "url", "") or ""
     if current_url:
