@@ -17,6 +17,114 @@ from utils.sentiment import analyze_news_sentiment
 from utils.i18n import t
 
 
+def _date_indexed(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy indexed by date/datetime when historical dates are available."""
+    for column in ("Datetime", "Date"):
+        if column in df.columns:
+            dated = df.copy()
+            dated[column] = pd.to_datetime(dated[column], errors="coerce")
+            dated = dated.dropna(subset=[column])
+            if not dated.empty:
+                return dated.set_index(column).sort_index()
+
+    dated = df.copy()
+    dated.index = pd.to_datetime(dated.index, errors="coerce")
+    dated = dated[dated.index.notna()]
+    return dated.sort_index()
+
+
+def _resampled_close(df: pd.DataFrame, rule: str) -> pd.Series:
+    dated = _date_indexed(df)
+    if dated.empty or "Close" not in dated.columns:
+        return pd.Series(dtype="float64")
+    return dated["Close"].dropna().resample(rule).last().dropna()
+
+
+def _signal_name(prefix: str, name: str) -> str:
+    return f"{prefix} {name}" if prefix else name
+
+
+def _add_core_price_signals(
+    signals: list[tuple],
+    close: pd.Series,
+    *,
+    prefix: str = "",
+    momentum_short_name: str = "5D Momentum",
+    momentum_long_name: str = "20D Momentum",
+) -> tuple[float, float | None, float | None, float]:
+    close = close.dropna()
+    if close.empty:
+        return 50, None, None, 0.0
+
+    price = close.iloc[-1]
+    has26 = len(close) >= 26
+
+    rsi_s = calculate_rsi(close)
+    rsi = rsi_s.iloc[-1] if not pd.isna(rsi_s.iloc[-1]) else 50
+    if   rsi < 30: signals.append((_signal_name(prefix, "RSI"),  1, 2, ("signals.rsi_oversold", {"value": f"{rsi:.1f}"})))
+    elif rsi < 45: signals.append((_signal_name(prefix, "RSI"),  1, 1, ("signals.rsi_mild_oversold", {"value": f"{rsi:.1f}"})))
+    elif rsi > 70: signals.append((_signal_name(prefix, "RSI"), -1, 2, ("signals.rsi_overbought", {"value": f"{rsi:.1f}"})))
+    elif rsi > 55: signals.append((_signal_name(prefix, "RSI"), -1, 1, ("signals.rsi_mild_overbought", {"value": f"{rsi:.1f}"})))
+    else:          signals.append((_signal_name(prefix, "RSI"),  0, 1, ("signals.rsi_neutral", {"value": f"{rsi:.1f}"})))
+
+    sma20 = sma50 = None
+    if has26:
+        s20 = close.rolling(20).mean()
+        s50 = close.rolling(50).mean()
+        if not pd.isna(s20.iloc[-1]) and not pd.isna(s50.iloc[-1]):
+            sma20, sma50 = s20.iloc[-1], s50.iloc[-1]
+            d = ((sma20 - sma50) / sma50) * 100
+            if   d >  2: signals.append((_signal_name(prefix, "SMA Cross"),  1, 2, ("signals.sma_golden_cross", {"diff": f"{d:.1f}"})))
+            elif d >  0: signals.append((_signal_name(prefix, "SMA Cross"),  1, 1, ("signals.sma_above", {})))
+            elif d < -2: signals.append((_signal_name(prefix, "SMA Cross"), -1, 2, ("signals.sma_death_cross", {"diff": f"{abs(d):.1f}"})))
+            else:        signals.append((_signal_name(prefix, "SMA Cross"), -1, 1, ("signals.sma_below", {})))
+
+    if sma20:
+        if   price > sma20 * 1.02: signals.append((_signal_name(prefix, "Price vs SMA20"),  1, 1, ("signals.price_above_sma20", {})))
+        elif price < sma20 * 0.98: signals.append((_signal_name(prefix, "Price vs SMA20"), -1, 1, ("signals.price_below_sma20", {})))
+        else:                      signals.append((_signal_name(prefix, "Price vs SMA20"),  0, 1, ("signals.price_near_sma20", {})))
+
+    if sma50:
+        if   price > sma50 * 1.03: signals.append((_signal_name(prefix, "Price vs SMA50"),  1, 1, ("signals.price_above_sma50", {})))
+        elif price < sma50 * 0.97: signals.append((_signal_name(prefix, "Price vs SMA50"), -1, 1, ("signals.price_below_sma50", {})))
+        else:                      signals.append((_signal_name(prefix, "Price vs SMA50"),  0, 1, ("signals.price_near_sma50", {})))
+
+    mom5 = 0.0
+    if len(close) >= 6:
+        mom5 = ((close.iloc[-1] - close.iloc[-6]) / close.iloc[-6]) * 100
+        if   mom5 >  5: signals.append((_signal_name(prefix, momentum_short_name),  1, 1, ("signals.momentum_5d_strong", {"pct": f"{mom5:.1f}"})))
+        elif mom5 < -5: signals.append((_signal_name(prefix, momentum_short_name), -1, 1, ("signals.momentum_5d_weak", {"pct": f"{mom5:.1f}"})))
+        else:           signals.append((_signal_name(prefix, momentum_short_name),  0, 1, ("signals.momentum_5d_flat", {"pct": f"{mom5:.1f}"})))
+
+    if len(close) >= 21:
+        m20 = ((close.iloc[-1] - close.iloc[-21]) / close.iloc[-21]) * 100
+        if   m20 >  8: signals.append((_signal_name(prefix, momentum_long_name),  1, 1, ("signals.momentum_20d_bullish", {"pct": f"{m20:.1f}"})))
+        elif m20 < -8: signals.append((_signal_name(prefix, momentum_long_name), -1, 1, ("signals.momentum_20d_bearish", {"pct": f"{m20:.1f}"})))
+        else:          signals.append((_signal_name(prefix, momentum_long_name),  0, 1, ("signals.momentum_20d_moderate", {"pct": f"{m20:.1f}"})))
+
+    if has26:
+        ml, ms = calculate_macd(close)
+        mv, sv = ml.iloc[-1], ms.iloc[-1]
+        if not pd.isna(mv) and not pd.isna(sv):
+            diff = mv - sv
+            thr  = price * 0.005
+            if   diff >  thr: signals.append((_signal_name(prefix, "MACD"),  1, 2, ("signals.macd_bullish", {})))
+            elif diff >  0:   signals.append((_signal_name(prefix, "MACD"),  1, 1, ("signals.macd_early_bullish", {})))
+            elif diff < -thr: signals.append((_signal_name(prefix, "MACD"), -1, 2, ("signals.macd_bearish", {})))
+            else:             signals.append((_signal_name(prefix, "MACD"), -1, 1, ("signals.macd_mild_bearish", {})))
+
+        _, _, bp_s = calculate_bollinger(close)
+        bp = bp_s.iloc[-1]
+        if not pd.isna(bp):
+            if   bp < 0.15: signals.append((_signal_name(prefix, "Bollinger"),  1, 2, ("signals.bollinger_lower", {})))
+            elif bp < 0.35: signals.append((_signal_name(prefix, "Bollinger"),  1, 1, ("signals.bollinger_lower_half", {})))
+            elif bp > 0.85: signals.append((_signal_name(prefix, "Bollinger"), -1, 2, ("signals.bollinger_upper", {})))
+            elif bp > 0.65: signals.append((_signal_name(prefix, "Bollinger"), -1, 1, ("signals.bollinger_upper_half", {})))
+            else:           signals.append((_signal_name(prefix, "Bollinger"),  0, 1, ("signals.bollinger_midband", {})))
+
+    return float(rsi), sma20, sma50, float(mom5)
+
+
 def generate_recommendation(
     df: pd.DataFrame,
     stock_info: dict,
@@ -45,78 +153,23 @@ def generate_recommendation(
 
     close  = clean["Close"]
     price  = close.iloc[-1]
-    has26  = len(close) >= 26
 
-    # ── RSI ──────────────────────────────────────────
-    rsi_s = calculate_rsi(close)
-    rsi   = rsi_s.iloc[-1] if not pd.isna(rsi_s.iloc[-1]) else 50
-
-    if   rsi < 30: signals.append(("RSI",  1, 2, ("signals.rsi_oversold", {"value": f"{rsi:.1f}"})))
-    elif rsi < 45: signals.append(("RSI",  1, 1, ("signals.rsi_mild_oversold", {"value": f"{rsi:.1f}"})))
-    elif rsi > 70: signals.append(("RSI", -1, 2, ("signals.rsi_overbought", {"value": f"{rsi:.1f}"})))
-    elif rsi > 55: signals.append(("RSI", -1, 1, ("signals.rsi_mild_overbought", {"value": f"{rsi:.1f}"})))
-    else:          signals.append(("RSI",  0, 1, ("signals.rsi_neutral", {"value": f"{rsi:.1f}"})))
-
-    # ── SMA cross ────────────────────────────────────
-    sma20 = sma50 = None
-    if has26:
-        s20 = close.rolling(20).mean()
-        s50 = close.rolling(50).mean()
-        if not pd.isna(s20.iloc[-1]) and not pd.isna(s50.iloc[-1]):
-            sma20, sma50 = s20.iloc[-1], s50.iloc[-1]
-            d = ((sma20 - sma50) / sma50) * 100
-            if   d >  2: signals.append(("SMA Cross",  1, 2, ("signals.sma_golden_cross", {"diff": f"{d:.1f}"})))
-            elif d >  0: signals.append(("SMA Cross",  1, 1, ("signals.sma_above", {})))
-            elif d < -2: signals.append(("SMA Cross", -1, 2, ("signals.sma_death_cross", {"diff": f"{abs(d):.1f}"})))
-            else:        signals.append(("SMA Cross", -1, 1, ("signals.sma_below", {})))
-
-    # ── Price vs SMA20 / SMA50 ───────────────────────
-    if sma20:
-        if   price > sma20 * 1.02: signals.append(("Price vs SMA20",  1, 1, ("signals.price_above_sma20", {})))
-        elif price < sma20 * 0.98: signals.append(("Price vs SMA20", -1, 1, ("signals.price_below_sma20", {})))
-        else:                      signals.append(("Price vs SMA20",  0, 1, ("signals.price_near_sma20", {})))
-
-    if sma50:
-        if   price > sma50 * 1.03: signals.append(("Price vs SMA50",  1, 1, ("signals.price_above_sma50", {})))
-        elif price < sma50 * 0.97: signals.append(("Price vs SMA50", -1, 1, ("signals.price_below_sma50", {})))
-        else:                      signals.append(("Price vs SMA50",  0, 1, ("signals.price_near_sma50", {})))
-
-    # ── Momentum ─────────────────────────────────────
-    mom5 = 0.0
-    if len(close) >= 6:
-        mom5 = ((close.iloc[-1] - close.iloc[-6]) / close.iloc[-6]) * 100
-        if   mom5 >  5: signals.append(("5D Momentum",  1, 1, ("signals.momentum_5d_strong", {"pct": f"{mom5:.1f}"})))
-        elif mom5 < -5: signals.append(("5D Momentum", -1, 1, ("signals.momentum_5d_weak", {"pct": f"{mom5:.1f}"})))
-        else:           signals.append(("5D Momentum",  0, 1, ("signals.momentum_5d_flat", {"pct": f"{mom5:.1f}"})))
-
-    if len(close) >= 21:
-        m20 = ((close.iloc[-1] - close.iloc[-21]) / close.iloc[-21]) * 100
-        if   m20 >  8: signals.append(("20D Momentum",  1, 1, ("signals.momentum_20d_bullish", {"pct": f"{m20:.1f}"})))
-        elif m20 < -8: signals.append(("20D Momentum", -1, 1, ("signals.momentum_20d_bearish", {"pct": f"{m20:.1f}"})))
-        else:          signals.append(("20D Momentum",  0, 1, ("signals.momentum_20d_moderate", {"pct": f"{m20:.1f}"})))
-
-    # ── MACD ─────────────────────────────────────────
-    if has26:
-        ml, ms = calculate_macd(close)
-        mv, sv = ml.iloc[-1], ms.iloc[-1]
-        if not pd.isna(mv) and not pd.isna(sv):
-            diff = mv - sv
-            thr  = price * 0.005
-            if   diff >  thr: signals.append(("MACD",  1, 2, ("signals.macd_bullish", {})))
-            elif diff >  0:   signals.append(("MACD",  1, 1, ("signals.macd_early_bullish", {})))
-            elif diff < -thr: signals.append(("MACD", -1, 2, ("signals.macd_bearish", {})))
-            else:             signals.append(("MACD", -1, 1, ("signals.macd_mild_bearish", {})))
-
-    # ── Bollinger ────────────────────────────────────
-    if has26:
-        _, _, bp_s = calculate_bollinger(close)
-        bp = bp_s.iloc[-1]
-        if not pd.isna(bp):
-            if   bp < 0.15: signals.append(("Bollinger",  1, 2, ("signals.bollinger_lower", {})))
-            elif bp < 0.35: signals.append(("Bollinger",  1, 1, ("signals.bollinger_lower_half", {})))
-            elif bp > 0.85: signals.append(("Bollinger", -1, 2, ("signals.bollinger_upper", {})))
-            elif bp > 0.65: signals.append(("Bollinger", -1, 1, ("signals.bollinger_upper_half", {})))
-            else:           signals.append(("Bollinger",  0, 1, ("signals.bollinger_midband", {})))
+    # ── Multi-timeframe price signals ────────────────
+    rsi, sma20, sma50, mom5 = _add_core_price_signals(signals, close)
+    _add_core_price_signals(
+        signals,
+        _resampled_close(clean, "W-FRI"),
+        prefix="Weekly",
+        momentum_short_name="5W Momentum",
+        momentum_long_name="20W Momentum",
+    )
+    _add_core_price_signals(
+        signals,
+        _resampled_close(clean, "ME"),
+        prefix="Monthly",
+        momentum_short_name="5M Momentum",
+        momentum_long_name="20M Momentum",
+    )
 
     # ── Volume ───────────────────────────────────────
     if "Volume" in df.columns and len(clean) >= 20:
@@ -169,6 +222,9 @@ def generate_recommendation(
 
     top_bull = [d for _, v, w, d in signals if v ==  1 and w >= 2]
     top_bear = [d for _, v, w, d in signals if v == -1 and w >= 2]
+    weekly_count = sum(1 for name, *_ in signals if name.startswith("Weekly "))
+    monthly_count = sum(1 for name, *_ in signals if name.startswith("Monthly "))
+    daily_count = max(nc - weekly_count - monthly_count - 2, 0)
 
     def _render_desc(d):
         # d can be a plain string or a tuple (key, params)
@@ -188,5 +244,12 @@ def generate_recommendation(
         summary = t("summary.sell", bearish=len(sells), total=nc, detail=top_text)
     else:
         summary = t("summary.hold", bullish=len(buys), bearish=len(sells), total=nc)
+
+    summary += "\n\n**Timeframe coverage:** " + t(
+        "summary.multi_timeframe_note",
+        daily=daily_count,
+        weekly=weekly_count,
+        monthly=monthly_count,
+    )
 
     return rec, conf, risk, summary, signals, news_label, news_detail, rsi, sma20, sma50, mom5, score_pct

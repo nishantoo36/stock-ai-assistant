@@ -33,6 +33,14 @@ RISK_TRANSLATION_KEYS = {
 
 
 def _translated_signal_name(name: str) -> str:
+    for prefix, key in (
+        ("Weekly ", "signals.timeframes.weekly"),
+        ("Monthly ", "signals.timeframes.monthly"),
+    ):
+        if name.startswith(prefix):
+            base_name = name.removeprefix(prefix)
+            return f"{t(key)} {_translated_signal_name(base_name)}"
+
     key = SIGNAL_NAME_KEYS.get(name)
     return t(key) if key else name
 

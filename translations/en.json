@@ -131,7 +131,7 @@
     "high_52w": "52W High",
     "low_52w": "52W Low",
     "education": "📚 What do these indicators mean?",
-    "education_content": "**RSI** — Below 30 = oversold (buy signal). Above 70 = overbought (sell risk).\n\n**SMA20 / SMA50** — Moving averages. SMA20 crossing above SMA50 = bullish golden cross.\n\n**MACD** — Momentum. Crossover above signal line = bullish shift.\n\n**Bollinger Bands** — Price near lower band = oversold. Near upper = overbought.\n\n**52-Week Range** — Near yearly low = potential value. Near yearly high = less upside buffer.\n\n**News Sentiment** — Headlines scanned for positive/negative keywords to gauge market mood.",
+    "education_content": "**RSI** — Below 30 = oversold (buy signal). Above 70 = overbought (sell risk).\n\n**SMA20 / SMA50** — SMA means Simple Moving Average. Think of it like the stock's average price over the last 20 or 50 candles. It smooths out daily ups and downs so you can see the bigger direction more clearly. If the short average (SMA20) moves above the longer average (SMA50), recent prices are improving faster than the older trend, which can be bullish. If SMA20 is below SMA50, the stock may still be in a weaker trend.\n\n**MACD** — Momentum. Crossover above signal line = bullish shift.\n\n**Bollinger Bands** — Price near lower band = oversold. Near upper = overbought.\n\n**52-Week Range** — Near yearly low = potential value. Near yearly high = less upside buffer.\n\n**News Sentiment** — Headlines scanned for positive/negative keywords to gauge market mood.",
     "disclaimer_note": "⚠️ No algorithm predicts markets perfectly. Use this to support your own research.",
     "cta_title": "💼 Start Investing",
     "cta_description": "Create an account via the link below to secure a welcome bonus.",
@@ -168,6 +168,7 @@
     "buy": "**{bullish} of {total} signals are bullish.**\n\n{detail}",
     "sell": "**{bearish} of {total} signals are bearish.**\n\n{detail}",
     "hold": "**Mixed: {bullish} bullish, {bearish} bearish of {total} total.**\n\nNo strong directional conviction — holding or waiting is prudent.",
+    "multi_timeframe_note": "This recommendation includes {daily} daily signals, {weekly} weekly signals, and {monthly} monthly signals, so longer-term trend evidence is part of the score.",
     "buy_fallback": "Multiple factors align positively.",
     "sell_fallback": "Multiple factors point to elevated risk."
   },
@@ -184,6 +185,10 @@
       "volume": "Volume",
       "range_52w": "52W Range",
       "news": "News"
+    },
+    "timeframes": {
+      "weekly": "Weekly",
+      "monthly": "Monthly"
     },
     "rsi_oversold": "RSI {value} — oversold, potential buy",
     "rsi_mild_oversold": "RSI {value} — mildly oversold",
@@ -231,7 +236,7 @@
   },
   "indicators": {
     "rsi": "Relative Strength Index (RSI) measures the magnitude of recent price changes to evaluate overbought or oversold conditions. RSI > 70 suggests overbought; RSI < 30 suggests oversold.",
-    "sma": "Simple Moving Average (SMA) smooths price data by calculating the average over a specific period. Traders use SMA crossovers to identify trend changes.",
+    "sma": "Simple Moving Average (SMA) is the stock's average price over a chosen period, like 20 or 50 candles. It smooths out short-term jumps and dips so the overall direction is easier to see. When a shorter SMA rises above a longer SMA, recent prices are gaining strength; when it stays below, the trend may be weaker.",
     "macd": "MACD (Moving Average Convergence Divergence) compares two moving averages to identify momentum changes. Bullish signal when MACD crosses above signal line.",
     "bollinger_bands": "Bollinger Bands consist of a moving average and upper/lower bands (2 standard deviations away). Prices tend to revert to mean when near the bands.",
     "momentum": "Momentum measures the rate of change of price. Positive momentum suggests upward pressure; negative momentum suggests downward pressure."
@@ -240,7 +245,7 @@
     "rsi_title": "RSI (Relative Strength Index)",
     "rsi_content": "Measures the magnitude of recent price changes to evaluate overbought or oversold conditions. RSI > 70 suggests overbought; RSI < 30 suggests oversold.",
     "sma_title": "SMA (Simple Moving Average)",
-    "sma_content": "Smooths price data by calculating the average over a specific period. Traders use SMA crossovers to identify trend changes.",
+    "sma_content": "SMA is the stock's average price over a chosen period, like 20 or 50 candles. It smooths out short-term jumps and dips so the overall direction is easier to see. If SMA20 is above SMA50, recent prices are stronger than the longer trend; if it is below, the trend may be weaker.",
     "macd_title": "MACD (Moving Average Convergence Divergence)",
     "macd_content": "Compares two moving averages to identify momentum changes. Bullish signal when MACD crosses above signal line.",
     "bollinger_title": "Bollinger Bands",

@@ -108,7 +108,7 @@
     "high_52w": "Plus haut 52 sem.",
     "low_52w": "Plus bas 52 sem.",
     "education": "📚 Que signifient ces indicateurs?",
-    "education_content": "**RSI** — Inférieur à 30 = survendu (signal d'achat). Supérieur à 70 = suracheté (risque de vente).\n\n**SMA20 / SMA50** — Moyennes mobiles. SMA20 croisant au-dessus de SMA50 = croix d'or haussière.\n\n**MACD** — Momentum. Croisement au-dessus de la ligne de signal = changement haussier.\n\n**Bandes de Bollinger** — Prix près de la bande inférieure = survendu. Près de la bande supérieure = suracheté.\n\n**Plage sur 52 semaines** — Proche du minimum annuel = valeur potentielle. Proche du maximum annuel = moins de potentiel haussier.\n\n**Sentiment des actualités** — Les titres sont analysés pour les mots-clés positifs/négatifs pour évaluer l'ambiance du marché.",
+    "education_content": "**RSI** — Inférieur à 30 = survendu (signal d'achat). Supérieur à 70 = suracheté (risque de vente).\n\n**SMA20 / SMA50** — SMA signifie moyenne mobile simple. Imaginez-la comme le prix moyen de l'action sur les 20 ou 50 dernières bougies. Elle lisse les petites hausses et baisses pour rendre la grande direction plus lisible. Si la moyenne courte (SMA20) passe au-dessus de la moyenne longue (SMA50), les prix récents s'améliorent plus vite que l'ancienne tendance, ce qui peut être haussier. Si SMA20 reste sous SMA50, la tendance peut encore être faible.\n\n**MACD** — Momentum. Croisement au-dessus de la ligne de signal = changement haussier.\n\n**Bandes de Bollinger** — Prix près de la bande inférieure = survendu. Près de la bande supérieure = suracheté.\n\n**Plage sur 52 semaines** — Proche du minimum annuel = valeur potentielle. Proche du maximum annuel = moins de potentiel haussier.\n\n**Sentiment des actualités** — Les titres sont analysés pour les mots-clés positifs/négatifs pour évaluer l'ambiance du marché.",
     "disclaimer_note": "⚠️ Aucun algorithme ne peut prédire les marchés parfaitement. Utilisez-le pour soutenir vos propres recherches.",
     "cta_title": "💼 Commencer à investir",
     "cta_description": "Créez un compte via le lien ci-dessous pour sécuriser un bonus de bienvenue.",
@@ -143,6 +143,7 @@
     "buy": "**{bullish} signaux sur {total} sont haussiers.**\n\n{detail}",
     "sell": "**{bearish} signaux sur {total} sont baissiers.**\n\n{detail}",
     "hold": "**Mixte : {bullish} haussiers, {bearish} baissiers sur {total} au total.**\n\nAucune conviction directionnelle forte — conserver ou attendre reste prudent.",
+    "multi_timeframe_note": "Cette recommandation inclut {daily} signaux quotidiens, {weekly} signaux hebdomadaires et {monthly} signaux mensuels ; la tendance de plus long terme fait donc partie du score.",
     "buy_fallback": "Plusieurs facteurs sont alignés positivement.",
     "sell_fallback": "Plusieurs facteurs indiquent un risque accru."
   },
@@ -159,6 +160,10 @@
       "volume": "Volume",
       "range_52w": "Fourchette 52 sem.",
       "news": "Actualités"
+    },
+    "timeframes": {
+      "weekly": "Hebdomadaire",
+      "monthly": "Mensuel"
     },
     "rsi_oversold": "RSI {value} — survendu, opportunité d'achat potentielle",
     "rsi_mild_oversold": "RSI {value} — légèrement survendu",
@@ -206,7 +211,7 @@
   },
   "indicators": {
     "rsi": "L'indice de force relative (RSI) mesure l'ampleur des récentes variations de prix pour évaluer les conditions de surenchère ou de survente. RSI > 70 suggère un surenchère; RSI < 30 suggère une survente.",
-    "sma": "La moyenne mobile simple (SMA) lisse les données de prix en calculant la moyenne sur une période spécifique. Les traders utilisent les croisements SMA pour identifier les changements de tendance.",
+    "sma": "La moyenne mobile simple (SMA) est le prix moyen de l'action sur une période choisie, comme 20 ou 50 bougies. Elle lisse les petites variations pour mieux voir la direction générale. Quand une SMA courte passe au-dessus d'une SMA longue, les prix récents gagnent en force ; quand elle reste en dessous, la tendance peut être plus faible.",
     "macd": "MACD (Moving Average Convergence Divergence) compare deux moyennes mobiles pour identifier les changements de momentum. Signal haussier lorsque MACD dépasse la ligne de signal.",
     "bollinger_bands": "Les bandes de Bollinger se composent d'une moyenne mobile et de bandes supérieure/inférieure (2 écarts-types de distance). Les prix ont tendance à revenir à la moyenne lorsqu'ils sont près des bandes.",
     "momentum": "Le momentum mesure le taux de changement des prix. Un momentum positif suggère une pression haussière; un momentum négatif suggère une pression baissière."
@@ -215,7 +220,7 @@
     "rsi_title": "RSI (Indice de force relative)",
     "rsi_content": "Mesure l'ampleur des récentes variations de prix pour évaluer les conditions de surenchère ou de survente. RSI > 70 suggère un surenchère; RSI < 30 suggère une survente.",
     "sma_title": "SMA (Moyenne mobile simple)",
-    "sma_content": "Lisse les données de prix en calculant la moyenne sur une période spécifique. Les traders utilisent les croisements SMA pour identifier les changements de tendance.",
+    "sma_content": "La SMA est le prix moyen de l'action sur une période choisie, comme 20 ou 50 bougies. Elle lisse les petites variations pour mieux voir la direction générale. Si SMA20 est au-dessus de SMA50, les prix récents sont plus forts que la tendance longue ; si elle est en dessous, la tendance peut être plus faible.",
     "macd_title": "MACD (Moving Average Convergence Divergence)",
     "macd_content": "Compare deux moyennes mobiles pour identifier les changements de momentum. Signal haussier lorsque MACD dépasse la ligne de signal.",
     "bollinger_title": "Bandes de Bollinger",
