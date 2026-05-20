@@ -12,7 +12,7 @@ from utils.indicators     import get_last_close
 from utils.forex          import get_currency_symbol, convert_price
 from utils.i18n           import t
 from utils.recommendation import generate_recommendation
-from ui.chart             import render_period_selector, render_chart
+from ui.chart             import CHART_PERIODS, render_period_selector, render_chart
 from ui.alerts            import render_alert_form
 from ui.analysis          import (
     render_rate_limit_error, render_stock_header, render_price,
@@ -83,7 +83,9 @@ def render_stock_view(currency_option: str) -> None:
     ticker       = st.session_state.selected_ticker
     company_name = st.session_state.company_name
 
-    period = render_period_selector()
+    if st.session_state.chart_period not in CHART_PERIODS:
+        st.session_state.chart_period = "1D"
+    period = st.session_state.chart_period
 
     with st.spinner(t("stock_view.loading_analysis")):
         try:
@@ -158,6 +160,7 @@ def render_stock_view(currency_option: str) -> None:
         previous_close=previous_close,
         exchange_timezone=info.get("exchangeTimezoneName"),
     )
+    render_period_selector()
     render_ai_summary(rec, summary)
     st.markdown("<br>", unsafe_allow_html=True)
 

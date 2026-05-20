@@ -224,6 +224,30 @@ h2, h3 { color: var(--text) !important; letter-spacing: -0.01em; }
     background: transparent;
     border-top: 2px dotted var(--purple);
 }
+[data-testid="stSegmentedControl"] {
+    margin: 8px 0 18px 0;
+}
+[data-testid="stSegmentedControl"] div[role="radiogroup"] {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+[data-testid="stSegmentedControl"] button {
+    min-width: 62px;
+    min-height: 46px;
+    border-radius: 999px !important;
+    border: 1.5px solid var(--border) !important;
+    background: var(--surface) !important;
+    color: var(--text) !important;
+    font-weight: 700 !important;
+    font-size: 0.92rem !important;
+}
+[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
+    border-color: var(--text) !important;
+    background: var(--surface2) !important;
+    color: var(--text) !important;
+}
 .news-item {
     padding: 10px 0;
     border-bottom: 1px solid var(--border);
@@ -400,6 +424,22 @@ div[data-baseweb="select"] * {
     }
     .chart-legend {
         gap: 10px;
+    }
+    [data-testid="stSegmentedControl"] div[role="radiogroup"] {
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 2px 0 8px 0;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    [data-testid="stSegmentedControl"] div[role="radiogroup"]::-webkit-scrollbar {
+        display: none;
+    }
+    [data-testid="stSegmentedControl"] button {
+        min-width: 58px;
+        min-height: 44px;
+        flex: 0 0 auto;
     }
     div[data-testid="stDialog"] div[role="dialog"] {
         width: 100vw !important;

@@ -27,6 +27,7 @@
     "check_email": "Vérifiez votre e-mail pour confirmer votre compte.",
     "login_error": "Échec de la connexion : {error}",
     "signup_error": "Échec de l'inscription : {error}",
+    "login_required_title": "Connexion requise",
     "login_required": "Connectez-vous pour enregistrer des actions, créer des alertes et voir votre watchlist."
   },
   "user_stocks": {
@@ -123,6 +124,7 @@
     "sma_20": "SMA 20",
     "sma_50": "SMA 50",
     "sma_200": "SMA 200",
+    "sma_hover": "Afficher le survol SMA",
     "period_1d": "1J",
     "period_5d": "5J",
     "period_1m": "1M",

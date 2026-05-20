@@ -27,6 +27,7 @@
     "check_email": "अपना खाता पुष्टि करने के लिए ईमेल देखें।",
     "login_error": "लॉग इन विफल: {error}",
     "signup_error": "साइन अप विफल: {error}",
+    "login_required_title": "लॉग इन आवश्यक है",
     "login_required": "स्टॉक सेव करने, अलर्ट बनाने और वॉचलिस्ट देखने के लिए लॉग इन करें।"
   },
   "user_stocks": {
@@ -123,6 +124,7 @@
     "sma_20": "SMA 20",
     "sma_50": "SMA 50",
     "sma_200": "SMA 200",
+    "sma_hover": "SMA होवर दिखाएं",
     "period_1d": "1 दिन",
     "period_5d": "5 दिन",
     "period_1m": "1 महीना",
