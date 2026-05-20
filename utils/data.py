@@ -150,7 +150,7 @@ def load_chart_data(ticker: str, period: str) -> pd.DataFrame:
 
 
 def load_analysis_data(ticker: str) -> pd.DataFrame:
-    return _load_history_cached(ticker, "6mo", "1d", TTL_INFO)
+    return _load_history_cached(ticker, "5y", "1d", TTL_HISTORY)
 
 
 # ── News ──────────────────────────────────────────────────────────────────────
