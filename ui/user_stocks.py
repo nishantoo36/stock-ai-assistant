@@ -8,7 +8,12 @@ from html import escape
 
 import streamlit as st
 
-from ui.auth import get_access_token, get_current_user, is_logged_in
+from ui.auth import (
+    get_access_token,
+    get_current_user,
+    is_logged_in,
+    render_login_required_dialog,
+)
 from utils.i18n import t
 from utils.supabase_client import SupabaseConfigError, get_user_supabase_client
 
@@ -116,9 +121,8 @@ def is_in_watchlist(ticker: str) -> bool:
 
 def render_stock_actions(ticker: str, company_name: str | None) -> None:
     if not is_logged_in():
-        if st.button(t("auth.login"), key=f"login_to_save_{ticker}", use_container_width=True):
-            st.session_state.show_login = True
-            st.rerun()
+        if st.button(t("user_stocks.add_watchlist"), key=f"login_to_save_{ticker}", use_container_width=True):
+            render_login_required_dialog()
         return
 
     try:

@@ -71,10 +71,10 @@ def render_alert_form(ticker: str, company_name: str | None, current_price: floa
     from ui.auth import is_logged_in
     with st.popover(t("alerts.create_alert"), use_container_width=True):
         if not is_logged_in():
-            st.caption(t("auth.login_required"))
-            if st.button(t("auth.login"), key=f"login_for_alert_{ticker}", use_container_width=True):
-                st.session_state.show_login = True
-                st.rerun()
+            from ui.auth import render_login_required_dialog
+
+            if st.button(t("alerts.create_alert"), key=f"login_for_alert_{ticker}", use_container_width=True):
+                render_login_required_dialog()
             return
 
         default_price = float(current_price) if current_price and current_price > 0 else 0.01

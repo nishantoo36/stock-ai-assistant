@@ -125,6 +125,18 @@ def logout() -> None:
     st.session_state[LOGOUT_FLAG] = True
 
 
+def render_login_required_dialog() -> None:
+    @st.dialog(t("auth.login_required_title"))
+    def _dialog() -> None:
+        st.caption(t("auth.login_required"))
+        if st.button(t("auth.login"), key="go_to_inline_login", use_container_width=True):
+            st.session_state.show_login = True
+            st.session_state.scroll_to_login = True
+            st.rerun()
+
+    _dialog()
+
+
 def _render_sign_in_options(key_prefix: str = "auth") -> None:
     """Render available sign-in methods."""
     st.markdown("### 🔐 Quick Sign In")
@@ -169,6 +181,7 @@ def render_login_section() -> None:
         st.session_state.show_login = False
         return
 
+    st.markdown("<div id='login-section'></div>", unsafe_allow_html=True)
     with st.container(border=True):
         col_body, col_close = st.columns([5, 1])
         with col_body:
@@ -177,3 +190,17 @@ def render_login_section() -> None:
             if st.button("X", key="close_inline_login", use_container_width=True):
                 st.session_state.show_login = False
                 st.rerun()
+
+    if st.session_state.pop("scroll_to_login", False):
+        components.html(
+            """
+            <script>
+            const loginTarget = window.parent.document.getElementById("login-section");
+            if (loginTarget) {
+              loginTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+            </script>
+            """,
+            height=0,
+            width=0,
+        )
