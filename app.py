@@ -376,7 +376,8 @@ QUICK_TOPIC_MARKETS = {
             "India": [
                 ("Nippon India Nifty 50 Bees", "NIFTYBEES.NS", "INR"),
                 ("SBI Nifty 50 ETF", "SETFNIF50.NS", "INR"),
-                ("ICICI Prudential Nifty ETF", "ICICINIFTY.NS", "INR"),
+                ("HDFC Nifty 50 ETF", "HDFCNIFTY.NS", "INR"),
+                ("Kotak Nifty 50 ETF", "KOTAKNIFTY.NS", "INR"),
             ],
             "United Kingdom": [
                 ("iShares Core FTSE 100 ETF", "ISF.L", "GBp"),
@@ -736,8 +737,12 @@ if not st.session_state.selected_ticker and not st.session_state.search_results:
             section_title = f"### 🔎 {title_by_topic.get(quick_topic, t('homepage.global_trending_stocks'))}"
         st.markdown(section_title)
 
+        visible_count = 0
         for stock, symbol, stock_currency in display_stocks:
             price, change = get_live_market_quote(symbol, stock_currency)
+            if price == t("common.unavailable"):
+                continue
+
             change_class = "positive" if change.startswith("+") else "negative" if change.startswith("-") else "neutral"
             st.markdown(f"""
             <a class="stock-card" href="{stock_url(symbol, stock)}">
@@ -746,6 +751,9 @@ if not st.session_state.selected_ticker and not st.session_state.search_results:
                 {t("homepage.change")}: <span class="{change_class}">{change}</span>
             </a>
             """, unsafe_allow_html=True)
+            visible_count += 1
+            if visible_count >= 5:
+                break
 
     with right:
         st.markdown(f"### 🤖 {t('homepage.ai_picks_today')}")
