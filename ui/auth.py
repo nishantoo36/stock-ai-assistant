@@ -4,6 +4,7 @@ Login, signup, and logout UI backed by Supabase Auth.
 
 from __future__ import annotations
 from html import escape
+from json import dumps
 from typing import Any
 
 import streamlit as st
@@ -175,11 +176,23 @@ def render_login_required_dialog() -> None:
     _dialog()
 
 
-def _render_google_sign_in_link(auth_url: str) -> None:
+def _render_google_sign_in_link(auth_url: str, code_verifier: str) -> None:
     safe_url = escape(auth_url, quote=True)
+    verifier_js = dumps(code_verifier)
+    auth_url_js = dumps(auth_url)
     st.markdown(
         (
             f'<a href="{safe_url}" target="_top" rel="noopener" '
+            'onclick=\''
+            'const secureCookie = window.location.protocol === "https:" ? "; Secure" : "";'
+            f'const verifierCookie = "{OAUTH_VERIFIER_COOKIE}=" + '
+            f'encodeURIComponent({verifier_js}) + '
+            '"; path=/; max-age=600; SameSite=Lax" + secureCookie;'
+            'document.cookie = verifierCookie;'
+            'try { window.parent.document.cookie = verifierCookie; } catch (err) {}'
+            f'window.top.location.href = {auth_url_js};'
+            'return false;'
+            '\' '
             'style="display:flex;align-items:center;justify-content:center;'
             'width:100%;min-height:38px;padding:0.45rem 0.75rem;'
             'border:1px solid rgba(49, 51, 63, 0.2);border-radius:0.5rem;'
@@ -217,7 +230,7 @@ def _render_sign_in_options() -> None:
         if auth_url and code_verifier:
             _store_pending_google_auth(auth_url, code_verifier)
             _persist_oauth_verifier_cookie(code_verifier)
-            _render_google_sign_in_link(auth_url)
+            _render_google_sign_in_link(auth_url, code_verifier)
         else:
             st.error("Failed to get Google sign-in URL")
     except Exception as exc:
@@ -227,7 +240,7 @@ def _render_sign_in_options() -> None:
             return
 
         _persist_oauth_verifier_cookie(pending_auth["code_verifier"])
-        _render_google_sign_in_link(pending_auth["url"])
+        _render_google_sign_in_link(pending_auth["url"], pending_auth["code_verifier"])
 
 
 def render_auth_panel() -> None:
