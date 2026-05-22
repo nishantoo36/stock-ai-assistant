@@ -7,20 +7,14 @@ service-role key must never be placed in st.secrets for this app.
 
 from __future__ import annotations
 
-import base64
-import json
-import time
 from typing import Any
-from urllib.parse import urlencode, urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import streamlit as st
 
 
 class SupabaseConfigError(RuntimeError):
     """Raised when Supabase is not configured for the local app."""
-
-
-OAUTH_STATE_MAX_AGE_SECONDS = 10 * 60
 
 
 def _get_secret(name: str) -> str:
@@ -43,30 +37,11 @@ def _is_local_url(url: str) -> bool:
     return parsed.hostname in {"localhost", "127.0.0.1", "::1"}
 
 
-def _encode_oauth_state(payload: dict[str, Any]) -> str:
-    state_json = json.dumps(payload, separators=(",", ":")).encode()
-    return base64.urlsafe_b64encode(state_json).decode().rstrip("=")
-
-
-def parse_oauth_state(state: str | None) -> dict[str, Any]:
-    """Decode short-lived OAuth callback state from the authorize URL."""
-    if not state:
-        return {}
-
-    try:
-        padded_state = state + ("=" * (-len(state) % 4))
-        payload = json.loads(base64.urlsafe_b64decode(padded_state))
-    except (ValueError, TypeError):
-        return {}
-
-    created_at = payload.get("created_at")
-    if not isinstance(created_at, (int, float)):
-        return {}
-
-    if time.time() - created_at > OAUTH_STATE_MAX_AGE_SECONDS:
-        return {}
-
-    return payload
+def _with_query_params(url: str, params: dict[str, str]) -> str:
+    parsed = urlparse(url)
+    query_params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query_params.update({key: value for key, value in params.items() if value})
+    return urlunparse(parsed._replace(query=urlencode(query_params)))
 
 
 def get_supabase_config() -> tuple[str, str]:
@@ -83,7 +58,7 @@ def get_supabase_config() -> tuple[str, str]:
     return _validate_url(url, "SUPABASE_URL"), key
 
 
-def get_auth_redirect_url() -> str:
+def get_auth_redirect_url(extra_params: dict[str, str] | None = None) -> str:
     """
     Return the local/deployed app URL Supabase should redirect back to.
 
@@ -105,7 +80,10 @@ def get_auth_redirect_url() -> str:
     else:
         url = configured_url or current_url
 
-    return _validate_url(url or "http://localhost:8501", "APP_URL")
+    redirect_url = _validate_url(url or "http://localhost:8501", "APP_URL")
+    if extra_params:
+        redirect_url = _with_query_params(redirect_url, extra_params)
+    return redirect_url
 
 
 @st.cache_resource(show_spinner=False)
@@ -152,7 +130,7 @@ def exchange_oauth_code(auth_code: str, code_verifier: str | None = None) -> Any
     client = get_public_supabase_client()
     params = {
         "auth_code": auth_code,
-        "redirect_to": get_auth_redirect_url(),
+        "redirect_to": get_auth_redirect_url({"oauth_verifier": code_verifier or ""}),
     }
     if code_verifier:
         params["code_verifier"] = code_verifier
@@ -171,19 +149,12 @@ def sign_in_with_google() -> dict[str, Any]:
         url, _ = get_supabase_config()
         verifier = generate_pkce_verifier()
         challenge = generate_pkce_challenge(verifier)
-        state = _encode_oauth_state(
-            {
-                "code_verifier": verifier,
-                "created_at": time.time(),
-            }
-        )
         query = urlencode(
             {
                 "provider": "google",
-                "redirect_to": get_auth_redirect_url(),
+                "redirect_to": get_auth_redirect_url({"oauth_verifier": verifier}),
                 "code_challenge": challenge,
                 "code_challenge_method": "s256",
-                "state": state,
             }
         )
         return {

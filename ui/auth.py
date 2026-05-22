@@ -182,42 +182,44 @@ def _render_sign_in_options(key_prefix: str = "auth") -> None:
     """Render available sign-in methods."""
     st.markdown("### 🔐 Quick Sign In")
 
-    pending_auth = st.session_state.get(PENDING_GOOGLE_AUTH)
-    if pending_auth:
+    try:
+        response = sign_in_with_google()
+        auth_url = _attr(response, "url")
+        code_verifier = _attr(response, "code_verifier")
+        if auth_url and code_verifier:
+            st.session_state[PENDING_GOOGLE_AUTH] = {
+                "url": auth_url,
+                "code_verifier": code_verifier,
+            }
+            # Keep the cookie fallback, while the callback URL carries the verifier.
+            components.html(
+                _oauth_redirect_script("", code_verifier, redirect=False),
+                height=0,
+                width=0,
+            )
+            st.link_button(
+                "🔵 Sign in with Google",
+                auth_url,
+                use_container_width=True,
+            )
+        else:
+            st.error("Failed to get Google sign-in URL")
+    except Exception as exc:
+        pending_auth = st.session_state.get(PENDING_GOOGLE_AUTH)
+        if not pending_auth:
+            st.error(f"Google sign-in error: {str(exc)}")
+            return
+
         components.html(
             _oauth_redirect_script("", pending_auth["code_verifier"], redirect=False),
             height=0,
             width=0,
         )
         st.link_button(
-            "Continue with Google",
+            "🔵 Sign in with Google",
             pending_auth["url"],
             use_container_width=True,
         )
-
-    if st.button(
-        "🔵 Sign in with Google",
-        key=f"{key_prefix}_google_oauth",
-        use_container_width=True,
-    ):
-        try:
-            response = sign_in_with_google()
-            auth_url = _attr(response, "url")
-            code_verifier = _attr(response, "code_verifier")
-            if auth_url and code_verifier:
-                st.session_state[PENDING_GOOGLE_AUTH] = {
-                    "url": auth_url,
-                    "code_verifier": code_verifier,
-                }
-                components.html(
-                    _oauth_redirect_script(auth_url, code_verifier),
-                    height=0,
-                    width=0,
-                )
-            else:
-                st.error("Failed to get Google sign-in URL")
-        except Exception as exc:
-            st.error(f"Google sign-in error: {str(exc)}")
 
 
 def render_auth_panel() -> None:
