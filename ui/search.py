@@ -3,6 +3,8 @@ Search bar, result cards, and no-results feedback.
 """
 
 import streamlit as st
+from html import escape
+from urllib.parse import urlencode
 from utils.data import do_search
 from utils.i18n import t
 
@@ -22,8 +24,29 @@ def _format_currency_option(value: str) -> str:
     return t("search.currency_selector") if value == "CurrencySelector" else value
 
 
+def _query_param(query_params, name: str) -> str | None:
+    value = query_params.get(name)
+    if isinstance(value, list):
+        return value[0] if value else None
+    return value
+
+
+def _stock_url(ticker: str, company_name: str) -> str:
+    params = {}
+    for key in ("lang", "q", "countries", "topic"):
+        value = _query_param(st.query_params, key)
+        if value:
+            params[key] = value
+    params["stock"] = ticker
+    params["company"] = company_name
+    return f"?{urlencode(params)}"
+
+
 def render_search_bar() -> str:
     """Renders currency selector + search bar. Returns selected currency."""
+    if st.session_state.pop("reset_search_query", False):
+        st.session_state.search_query = ""
+
     st.markdown("""
 <style>
 div[data-testid="stSelectbox"] > label { display: none !important; }
@@ -43,18 +66,39 @@ div[data-testid="stTextInput"]  > label { display: none !important; }
         search_text = st.text_input(
             t("search.search"),
             placeholder=t("search.placeholder"),
+            key="search_query",
             label_visibility="collapsed",
         )
     with col_btn:
         search_clicked = st.button(t("search.button"), use_container_width=True)
 
-    if search_clicked and search_text:
-        _execute_search(search_text)
+    if search_clicked:
+        if search_text and search_text.strip():
+            _execute_search(search_text)
+        else:
+            clear_search_state()
 
     return currency_option
 
 
-def _execute_search(search_text: str) -> None:
+def clear_search_state() -> None:
+    st.session_state.search_results = []
+    st.session_state.search_no_results = None
+    st.session_state.last_search_query = ""
+    st.session_state.selected_ticker = None
+    st.session_state.company_name = None
+    st.session_state.url_selected_stock = False
+    st.query_params.pop("q", None)
+    st.query_params.pop("stock", None)
+    st.query_params.pop("company", None)
+    st.rerun()
+
+
+def _execute_search(search_text: str, update_url: bool = True) -> None:
+    search_text = search_text.strip()
+    if not search_text:
+        return
+
     with st.spinner(t("search.searching")):
         try:
             res    = do_search(search_text)
@@ -72,6 +116,13 @@ def _execute_search(search_text: str) -> None:
             st.session_state.selected_ticker    = None
             st.session_state.company_name       = None
             st.session_state.search_no_results  = search_text if not results else None
+            st.session_state.last_search_query  = search_text
+            st.session_state.url_selected_stock = False
+            if update_url:
+                st.query_params["q"] = search_text
+                st.query_params.pop("topic", None)
+                st.query_params.pop("stock", None)
+                st.query_params.pop("company", None)
         except Exception as e:
             st.error(t("search.search_error", error=str(e)))
 
@@ -103,23 +154,47 @@ def render_result_cards() -> None:
         unsafe_allow_html=True,
     )
 
+    st.markdown(
+        """
+        <style>
+        .result-card-link {
+            display: block;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            color: var(--text) !important;
+            text-decoration: none !important;
+            min-height: 92px;
+        }
+        .result-card-link:hover {
+            border-color: var(--accent);
+            color: var(--accent) !important;
+        }
+        .result-card-link strong {
+            color: inherit;
+        }
+        .result-card-link .meta {
+            color: var(--muted);
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            margin-top: 10px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     cols = st.columns(2)
     for i, item in enumerate(st.session_state.search_results):
         icon  = TYPE_ICON.get(item["type"], "📌")
         exch  = EXCH_LABEL.get(item["exchange"], item["exchange"])
-        label = f"{icon} **{item['name']}**\n\n`{item['ticker']}` · {exch}"
         with cols[i % 2]:
-            if st.button(label, key=f"card_{i}", use_container_width=True):
-                st.session_state.selected_ticker = item["ticker"]
-                st.session_state.company_name    = item["name"]
-                st.session_state.search_results  = []
-                st.rerun()
-
-
-def render_change_stock_button() -> None:
-    if st.session_state.selected_ticker:
-        if st.button(t("search.change_stock")):
-            st.session_state.selected_ticker = None
-            st.session_state.company_name    = None
-            st.session_state.search_results  = []
-            st.rerun()
+            st.markdown(
+                f'<a class="result-card-link" href="{_stock_url(item["ticker"], item["name"])}">'
+                f'{icon} <strong>{escape(item["name"])}</strong>'
+                f'<div class="meta">{escape(item["ticker"])} · {escape(exch)}</div>'
+                f'</a>',
+                unsafe_allow_html=True,
+            )

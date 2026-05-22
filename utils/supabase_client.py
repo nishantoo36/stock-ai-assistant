@@ -8,7 +8,7 @@ service-role key must never be placed in st.secrets for this app.
 from __future__ import annotations
 
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 import streamlit as st
 
@@ -100,15 +100,17 @@ def get_user_supabase_client(access_token: str | None = None) -> Any:
     return client
 
 
-def exchange_oauth_code(auth_code: str) -> Any:
+def exchange_oauth_code(auth_code: str, code_verifier: str | None = None) -> Any:
     """Exchange a Supabase OAuth callback code for an auth session."""
     client = get_public_supabase_client()
-    return client.auth.exchange_code_for_session(
-        {
-            "auth_code": auth_code,
-            "redirect_to": get_auth_redirect_url(),
-        }
-    )
+    params = {
+        "auth_code": auth_code,
+        "redirect_to": get_auth_redirect_url(),
+    }
+    if code_verifier:
+        params["code_verifier"] = code_verifier
+
+    return client.auth.exchange_code_for_session(params)
 
 
 def sign_in_with_google() -> dict[str, Any]:
@@ -117,13 +119,22 @@ def sign_in_with_google() -> dict[str, Any]:
     Returns the OAuth response with URL for redirecting user to Google.
     """
     try:
-        client = get_public_supabase_client()
-        response = client.auth.sign_in_with_oauth({
-            "provider": "google",
-            "options": {
+        from supabase_auth.helpers import generate_pkce_challenge, generate_pkce_verifier
+
+        url, _ = get_supabase_config()
+        verifier = generate_pkce_verifier()
+        challenge = generate_pkce_challenge(verifier)
+        query = urlencode(
+            {
+                "provider": "google",
                 "redirect_to": get_auth_redirect_url(),
+                "code_challenge": challenge,
+                "code_challenge_method": "s256",
             }
-        })
-        return response
+        )
+        return {
+            "url": f"{url}/auth/v1/authorize?{query}",
+            "code_verifier": verifier,
+        }
     except Exception as exc:
         raise SupabaseConfigError(f"Google OAuth failed: {str(exc)}") from exc
