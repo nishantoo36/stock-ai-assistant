@@ -307,7 +307,7 @@ COUNTRY_MARKETS = {
         "label": "🇯🇵 Japan",
         "indexes": [
             ("Nikkei 225", "^N225", "JPY"),
-            ("TOPIX", "^TOPX", "JPY"),
+            ("TOPIX", "^TPX", "JPY"),
         ],
         "stocks": [
             ("Toyota", "7203.T", "JPY"),
@@ -329,6 +329,110 @@ COUNTRY_MARKETS = {
             ("Mercedes-Benz", "MBG.DE", "EUR"),
         ],
     },
+    "France": {
+        "label": "🇫🇷 France",
+        "indexes": [
+            ("CAC 40", "^FCHI", "EUR"),
+            ("SBF 120", "^SBF120", "EUR"),
+        ],
+        "stocks": [
+            ("LVMH", "MC.PA", "EUR"),
+            ("TotalEnergies", "TTE.PA", "EUR"),
+            ("Schneider Electric", "SU.PA", "EUR"),
+            ("Sanofi", "SAN.PA", "EUR"),
+        ],
+    },
+    "Netherlands": {
+        "label": "🇳🇱 Netherlands",
+        "indexes": [
+            ("AEX", "^AEX", "EUR"),
+            ("AMX", "^AMX", "EUR"),
+        ],
+        "stocks": [
+            ("ASML", "ASML.AS", "EUR"),
+            ("ING Group", "INGA.AS", "EUR"),
+            ("Adyen", "ADYEN.AS", "EUR"),
+            ("Philips", "PHIA.AS", "EUR"),
+        ],
+    },
+    "Spain": {
+        "label": "🇪🇸 Spain",
+        "indexes": [
+            ("IBEX 35", "^IBEX", "EUR"),
+            ("IBEX Medium Cap", "IBEXM.MC", "EUR"),
+        ],
+        "stocks": [
+            ("Inditex", "ITX.MC", "EUR"),
+            ("Banco Santander", "SAN.MC", "EUR"),
+            ("Iberdrola", "IBE.MC", "EUR"),
+            ("BBVA", "BBVA.MC", "EUR"),
+        ],
+    },
+    "Italy": {
+        "label": "🇮🇹 Italy",
+        "indexes": [
+            ("FTSE MIB", "FTSEMIB.MI", "EUR"),
+            ("FTSE Italia All-Share", "ITLMS.MI", "EUR"),
+        ],
+        "stocks": [
+            ("Enel", "ENEL.MI", "EUR"),
+            ("Intesa Sanpaolo", "ISP.MI", "EUR"),
+            ("Eni", "ENI.MI", "EUR"),
+            ("UniCredit", "UCG.MI", "EUR"),
+        ],
+    },
+    "Belgium": {
+        "label": "🇧🇪 Belgium",
+        "indexes": [
+            ("BEL 20", "^BFX", "EUR"),
+            ("BEL Mid", "BELM.BR", "EUR"),
+        ],
+        "stocks": [
+            ("Anheuser-Busch InBev", "ABI.BR", "EUR"),
+            ("KBC Group", "KBC.BR", "EUR"),
+            ("UCB", "UCB.BR", "EUR"),
+            ("Solvay", "SOLB.BR", "EUR"),
+        ],
+    },
+    "Finland": {
+        "label": "🇫🇮 Finland",
+        "indexes": [
+            ("OMX Helsinki 25", "^OMXH25", "EUR"),
+            ("OMX Helsinki", "^OMXHPI", "EUR"),
+        ],
+        "stocks": [
+            ("Nokia", "NOKIA.HE", "EUR"),
+            ("Neste", "NESTE.HE", "EUR"),
+            ("Kone", "KNEBV.HE", "EUR"),
+            ("Sampo", "SAMPO.HE", "EUR"),
+        ],
+    },
+    "Austria": {
+        "label": "🇦🇹 Austria",
+        "indexes": [
+            ("ATX", "^ATX", "EUR"),
+            ("ATX Prime", "ATXPRIME.VI", "EUR"),
+        ],
+        "stocks": [
+            ("Erste Group", "EBS.VI", "EUR"),
+            ("OMV", "OMV.VI", "EUR"),
+            ("Verbund", "VER.VI", "EUR"),
+            ("Andritz", "ANDR.VI", "EUR"),
+        ],
+    },
+    "Portugal": {
+        "label": "🇵🇹 Portugal",
+        "indexes": [
+            ("PSI", "PSI20.LS", "EUR"),
+            ("PSI Geral", "PSING.LS", "EUR"),
+        ],
+        "stocks": [
+            ("EDP", "EDP.LS", "EUR"),
+            ("Galp Energia", "GALP.LS", "EUR"),
+            ("Jeronimo Martins", "JMT.LS", "EUR"),
+            ("Banco Comercial Portugues", "BCP.LS", "EUR"),
+        ],
+    },
     "Canada": {
         "label": "🇨🇦 Canada",
         "indexes": [
@@ -340,6 +444,71 @@ COUNTRY_MARKETS = {
             ("Royal Bank", "RY.TO", "CAD"),
             ("Enbridge", "ENB.TO", "CAD"),
             ("Brookfield", "BN.TO", "CAD"),
+        ],
+    },
+    "Australia": {
+        "label": "🇦🇺 Australia",
+        "indexes": [
+            ("ASX 200", "^AXJO", "AUD"),
+            ("All Ordinaries", "^AORD", "AUD"),
+        ],
+        "stocks": [
+            ("BHP", "BHP.AX", "AUD"),
+            ("Commonwealth Bank", "CBA.AX", "AUD"),
+            ("CSL", "CSL.AX", "AUD"),
+            ("Wesfarmers", "WES.AX", "AUD"),
+        ],
+    },
+    "Switzerland": {
+        "label": "🇨🇭 Switzerland",
+        "indexes": [
+            ("Swiss Market Index", "^SSMI", "CHF"),
+            ("Swiss Performance Index", "^SSHI", "CHF"),
+        ],
+        "stocks": [
+            ("Nestle", "NESN.SW", "CHF"),
+            ("Novartis", "NOVN.SW", "CHF"),
+            ("Roche", "ROG.SW", "CHF"),
+            ("UBS", "UBSG.SW", "CHF"),
+        ],
+    },
+    "China": {
+        "label": "🇨🇳 China",
+        "indexes": [
+            ("Shanghai Composite", "000001.SS", "CNY"),
+            ("Shenzhen Component", "399001.SZ", "CNY"),
+        ],
+        "stocks": [
+            ("Kweichow Moutai", "600519.SS", "CNY"),
+            ("Ping An Insurance", "601318.SS", "CNY"),
+            ("BYD", "002594.SZ", "CNY"),
+            ("China Merchants Bank", "600036.SS", "CNY"),
+        ],
+    },
+    "Singapore": {
+        "label": "🇸🇬 Singapore",
+        "indexes": [
+            ("Straits Times Index", "^STI", "SGD"),
+            ("FTSE ST Mid Cap", "FSTM.SI", "SGD"),
+        ],
+        "stocks": [
+            ("DBS Group", "D05.SI", "SGD"),
+            ("OCBC Bank", "O39.SI", "SGD"),
+            ("UOB", "U11.SI", "SGD"),
+            ("Singapore Airlines", "C6L.SI", "SGD"),
+        ],
+    },
+    "United Arab Emirates": {
+        "label": "🇦🇪 United Arab Emirates",
+        "indexes": [
+            ("DFM General Index", "DFMGI.AE", "AED"),
+            ("ADX General Index", "ADI.AE", "AED"),
+        ],
+        "stocks": [
+            ("Emaar Properties", "EMAAR.AE", "AED"),
+            ("Dubai Islamic Bank", "DIB.AE", "AED"),
+            ("Emirates NBD", "EMIRATESNBD.AE", "AED"),
+            ("Aldar Properties", "ALDAR.AE", "AED"),
         ],
     },
 }
@@ -455,6 +624,11 @@ def _currency_prefix(currency: str) -> str:
         "JPY": "¥",
         "CAD": "C$",
         "GBp": "£",
+        "AUD": "A$",
+        "CHF": "CHF ",
+        "CNY": "¥",
+        "SGD": "S$",
+        "AED": "د.إ",
     }.get(currency, "")
 
 
@@ -701,7 +875,7 @@ if not st.session_state.selected_ticker and not st.session_state.search_results:
     selected_countries = st.multiselect(
         t("homepage.country"),
         country_options,
-        format_func=lambda country: t(f"homepage.countries.{country}"),
+        format_func=lambda country: COUNTRY_MARKETS[country]["label"],
         key="selected_countries",
         placeholder=t("homepage.country_placeholder"),
         max_selections=5,

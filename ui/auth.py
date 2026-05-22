@@ -6,7 +6,6 @@ from __future__ import annotations
 from typing import Any
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from utils.common import attr
 from utils.i18n import t
@@ -21,6 +20,15 @@ REFRESH_COOKIE = "stock_ai_refresh_token"
 LOGOUT_FLAG = "auth_logout_requested"
 OAUTH_VERIFIER_COOKIE = "stock_ai_oauth_verifier"
 PENDING_GOOGLE_AUTH = "pending_google_auth"
+
+
+def _render_script_iframe(script_html: str, height: int = 0, width: int = 0) -> None:
+    html_renderer = getattr(getattr(st, "_main", None), "_html", None)
+    if callable(html_renderer):
+        html_renderer(script_html, height=height, width=width)
+        return
+
+    st.warning("Your Streamlit version cannot render auth helper scripts.")
 
 
 def _cookie_script(access_token: str = "", refresh_token: str = "", clear: bool = False) -> str:
@@ -46,7 +54,7 @@ def _cookie_script(access_token: str = "", refresh_token: str = "", clear: bool 
 
 def _persist_auth_session(access_token: str | None, refresh_token: str | None) -> None:
     if access_token and refresh_token:
-        components.html(_cookie_script(access_token, refresh_token), height=0, width=0)
+        _render_script_iframe(_cookie_script(access_token, refresh_token))
 
 
 def _oauth_redirect_script(auth_url: str, code_verifier: str, redirect: bool = True) -> str:
@@ -68,12 +76,12 @@ def _oauth_redirect_script(auth_url: str, code_verifier: str, redirect: bool = T
 
 
 def _clear_persistent_auth_session() -> None:
-    components.html(_cookie_script(clear=True), height=1, width=1)
+    _render_script_iframe(_cookie_script(clear=True), height=1, width=1)
 
 
 def clear_oauth_verifier() -> None:
     """Expire the short-lived OAuth PKCE verifier cookie after callback handling."""
-    components.html(
+    _render_script_iframe(
         f"""
         <script>
         document.cookie = "{OAUTH_VERIFIER_COOKIE}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; "
@@ -85,8 +93,6 @@ def clear_oauth_verifier() -> None:
         }} catch (err) {{}}
         </script>
         """,
-        height=0,
-        width=0,
     )
 
 
@@ -192,10 +198,8 @@ def _store_pending_google_auth(auth_url: str, code_verifier: str) -> None:
 
 def _persist_oauth_verifier_cookie(code_verifier: str) -> None:
     # Keep the cookie fallback, while the callback URL carries the verifier.
-    components.html(
+    _render_script_iframe(
         _oauth_redirect_script("", code_verifier, redirect=False),
-        height=0,
-        width=0,
     )
 
 
@@ -258,7 +262,7 @@ def render_login_section() -> None:
                 st.rerun()
 
     if st.session_state.pop("scroll_to_login", False):
-        components.html(
+        _render_script_iframe(
             """
             <script>
             const loginTarget = window.parent.document.getElementById("login-section");
@@ -267,6 +271,4 @@ def render_login_section() -> None:
             }
             </script>
             """,
-            height=0,
-            width=0,
         )
