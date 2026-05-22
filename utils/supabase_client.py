@@ -7,6 +7,9 @@ service-role key must never be placed in st.secrets for this app.
 
 from __future__ import annotations
 
+import base64
+import json
+import time
 from typing import Any
 from urllib.parse import urlencode, urlparse
 
@@ -15,6 +18,9 @@ import streamlit as st
 
 class SupabaseConfigError(RuntimeError):
     """Raised when Supabase is not configured for the local app."""
+
+
+OAUTH_STATE_MAX_AGE_SECONDS = 10 * 60
 
 
 def _get_secret(name: str) -> str:
@@ -35,6 +41,32 @@ def _validate_url(url: str, setting_name: str) -> str:
 def _is_local_url(url: str) -> bool:
     parsed = urlparse(url)
     return parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+
+
+def _encode_oauth_state(payload: dict[str, Any]) -> str:
+    state_json = json.dumps(payload, separators=(",", ":")).encode()
+    return base64.urlsafe_b64encode(state_json).decode().rstrip("=")
+
+
+def parse_oauth_state(state: str | None) -> dict[str, Any]:
+    """Decode short-lived OAuth callback state from the authorize URL."""
+    if not state:
+        return {}
+
+    try:
+        padded_state = state + ("=" * (-len(state) % 4))
+        payload = json.loads(base64.urlsafe_b64decode(padded_state))
+    except (ValueError, TypeError):
+        return {}
+
+    created_at = payload.get("created_at")
+    if not isinstance(created_at, (int, float)):
+        return {}
+
+    if time.time() - created_at > OAUTH_STATE_MAX_AGE_SECONDS:
+        return {}
+
+    return payload
 
 
 def get_supabase_config() -> tuple[str, str]:
@@ -139,12 +171,19 @@ def sign_in_with_google() -> dict[str, Any]:
         url, _ = get_supabase_config()
         verifier = generate_pkce_verifier()
         challenge = generate_pkce_challenge(verifier)
+        state = _encode_oauth_state(
+            {
+                "code_verifier": verifier,
+                "created_at": time.time(),
+            }
+        )
         query = urlencode(
             {
                 "provider": "google",
                 "redirect_to": get_auth_redirect_url(),
                 "code_challenge": challenge,
                 "code_challenge_method": "s256",
+                "state": state,
             }
         )
         return {
