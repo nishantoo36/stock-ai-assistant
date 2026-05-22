@@ -32,6 +32,11 @@ def _validate_url(url: str, setting_name: str) -> str:
     return url.rstrip("/")
 
 
+def _is_local_url(url: str) -> bool:
+    parsed = urlparse(url)
+    return parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+
+
 def get_supabase_config() -> tuple[str, str]:
     """Return Supabase URL and anon/publishable key from Streamlit secrets."""
     url = _get_secret("SUPABASE_URL")
@@ -57,7 +62,17 @@ def get_auth_redirect_url() -> str:
         parsed = urlparse(current_url)
         current_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")
 
-    url = _get_secret("APP_URL") or _get_secret("STREAMLIT_APP_URL") or current_url
+    configured_url = _get_secret("APP_URL") or _get_secret("STREAMLIT_APP_URL")
+    if (
+        current_url
+        and configured_url
+        and _is_local_url(configured_url)
+        and not _is_local_url(current_url)
+    ):
+        url = current_url
+    else:
+        url = configured_url or current_url
+
     return _validate_url(url or "http://localhost:8501", "APP_URL")
 
 

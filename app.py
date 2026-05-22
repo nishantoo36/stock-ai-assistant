@@ -13,6 +13,8 @@ st.set_page_config(
 from ui.auth import (
     LOGOUT_FLAG,
     OAUTH_VERIFIER_COOKIE,
+    PENDING_GOOGLE_AUTH,
+    clear_oauth_verifier,
     is_logged_in,
     persist_current_auth_session,
     restore_auth_session,
@@ -65,14 +67,22 @@ def _handle_auth_callback() -> None:
         try:
             from utils.supabase_client import exchange_oauth_code
 
-            code_verifier = st.context.cookies.get(OAUTH_VERIFIER_COOKIE)
+            pending_auth = st.session_state.get(PENDING_GOOGLE_AUTH) or {}
+            code_verifier = (
+                st.context.cookies.get(OAUTH_VERIFIER_COOKIE)
+                or pending_auth.get("code_verifier")
+            )
             if not code_verifier:
-                st.error("Authentication failed: login session expired. Please try signing in again.")
+                st.error(
+                    "Authentication failed: login session expired. "
+                    "Please try signing in again."
+                )
                 st.query_params.clear()
                 return
 
             response = exchange_oauth_code(auth_code, code_verifier)
             if store_auth_session(response):
+                clear_oauth_verifier()
                 st.query_params.clear()
                 st.rerun()
         except Exception as exc:

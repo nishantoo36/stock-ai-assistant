@@ -57,7 +57,11 @@ def _oauth_redirect_script(auth_url: str, code_verifier: str, redirect: bool = T
     redirect_script = f"window.top.location.href = {auth_url!r};" if redirect else ""
     return f"""
     <script>
-    const verifierCookie = "{OAUTH_VERIFIER_COOKIE}=" + encodeURIComponent({code_verifier!r}) + "; path=/; max-age=600; SameSite=Lax";
+    const secureCookie = window.location.protocol === "https:" ? "; Secure" : "";
+    const verifierCookie = "{OAUTH_VERIFIER_COOKIE}="
+        + encodeURIComponent({code_verifier!r})
+        + "; path=/; max-age=600; SameSite=Lax"
+        + secureCookie;
     document.cookie = verifierCookie;
     try {{
         window.parent.document.cookie = verifierCookie;
@@ -69,6 +73,25 @@ def _oauth_redirect_script(auth_url: str, code_verifier: str, redirect: bool = T
 
 def _clear_persistent_auth_session() -> None:
     components.html(_cookie_script(clear=True), height=1, width=1)
+
+
+def clear_oauth_verifier() -> None:
+    """Expire the short-lived OAuth PKCE verifier cookie after callback handling."""
+    components.html(
+        f"""
+        <script>
+        document.cookie = "{OAUTH_VERIFIER_COOKIE}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; "
+            + "max-age=0; path=/; SameSite=Lax";
+        try {{
+            window.parent.document.cookie = "{OAUTH_VERIFIER_COOKIE}=; "
+                + "expires=Thu, 01 Jan 1970 00:00:00 GMT; "
+                + "max-age=0; path=/; SameSite=Lax";
+        }} catch (err) {{}}
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
 
 
 def persist_current_auth_session() -> None:
@@ -187,14 +210,9 @@ def _render_sign_in_options(key_prefix: str = "auth") -> None:
                     "code_verifier": code_verifier,
                 }
                 components.html(
-                    _oauth_redirect_script("", code_verifier, redirect=False),
+                    _oauth_redirect_script(auth_url, code_verifier),
                     height=0,
                     width=0,
-                )
-                st.link_button(
-                    "Continue with Google",
-                    auth_url,
-                    use_container_width=True,
                 )
             else:
                 st.error("Failed to get Google sign-in URL")
