@@ -3,6 +3,7 @@ Login, signup, and logout UI backed by Supabase Auth.
 """
 
 from __future__ import annotations
+from html import escape
 from typing import Any
 import streamlit as st
 import streamlit.components.v1 as components
@@ -178,6 +179,36 @@ def render_login_required_dialog() -> None:
     _dialog()
 
 
+def _render_google_sign_in_link(auth_url: str) -> None:
+    st.markdown(
+        f"""
+        <a
+            href="{escape(auth_url, quote=True)}"
+            target="_top"
+            rel="noopener"
+            style="
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                width:100%;
+                min-height:38px;
+                padding:0.45rem 0.75rem;
+                border:1px solid rgba(49, 51, 63, 0.2);
+                border-radius:0.5rem;
+                color:inherit;
+                text-decoration:none;
+                font-weight:400;
+                line-height:1.6;
+                box-sizing:border-box;
+            "
+        >
+            🔵 Sign in with Google
+        </a>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def _render_sign_in_options(key_prefix: str = "auth") -> None:
     """Render available sign-in methods."""
     st.markdown("### 🔐 Quick Sign In")
@@ -197,11 +228,7 @@ def _render_sign_in_options(key_prefix: str = "auth") -> None:
                 height=0,
                 width=0,
             )
-            st.link_button(
-                "🔵 Sign in with Google",
-                auth_url,
-                use_container_width=True,
-            )
+            _render_google_sign_in_link(auth_url)
         else:
             st.error("Failed to get Google sign-in URL")
     except Exception as exc:
@@ -215,11 +242,7 @@ def _render_sign_in_options(key_prefix: str = "auth") -> None:
             height=0,
             width=0,
         )
-        st.link_button(
-            "🔵 Sign in with Google",
-            pending_auth["url"],
-            use_container_width=True,
-        )
+        _render_google_sign_in_link(pending_auth["url"])
 
 
 def render_auth_panel() -> None:
