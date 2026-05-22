@@ -20,19 +20,7 @@ from ui.auth import (
     restore_auth_session,
     store_auth_session,
 )
-
-
-def _attr(obj, name, default=None):
-    if isinstance(obj, dict):
-        return obj.get(name, default)
-    return getattr(obj, name, default)
-
-
-def _query_param(query_params, name: str) -> str | None:
-    value = query_params.get(name)
-    if isinstance(value, list):
-        return value[0] if value else None
-    return value
+from utils.common import attr as _attr, query_param as _query_param
 
 
 def _set_query_param(name: str, value: str | None) -> None:

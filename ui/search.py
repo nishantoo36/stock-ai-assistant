@@ -5,6 +5,8 @@ Search bar, result cards, and no-results feedback.
 import streamlit as st
 from html import escape
 from urllib.parse import urlencode
+
+from utils.common import query_param
 from utils.data import do_search
 from utils.i18n import t
 
@@ -24,17 +26,10 @@ def _format_currency_option(value: str) -> str:
     return t("search.currency_selector") if value == "CurrencySelector" else value
 
 
-def _query_param(query_params, name: str) -> str | None:
-    value = query_params.get(name)
-    if isinstance(value, list):
-        return value[0] if value else None
-    return value
-
-
 def _stock_url(ticker: str, company_name: str) -> str:
     params = {}
     for key in ("lang", "q", "countries", "topic"):
-        value = _query_param(st.query_params, key)
+        value = query_param(st.query_params, key)
         if value:
             params[key] = value
     params["stock"] = ticker

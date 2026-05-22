@@ -7,7 +7,9 @@ Supports: English, Hindi, Gujarati, French
 import os
 import json
 import streamlit as st
-from typing import Dict, Any, Optional
+from typing import Dict, Any
+
+from utils.common import query_param
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
@@ -52,7 +54,7 @@ def set_language(lang_code: str) -> None:
     if lang_code in SUPPORTED_LANGUAGES:
         st.session_state.current_language = lang_code
         try:
-            if st.query_params.get("lang") != lang_code:
+            if query_param(st.query_params, "lang") != lang_code:
                 st.query_params["lang"] = lang_code
         except Exception:
             pass
@@ -65,8 +67,7 @@ def get_current_language() -> str:
     """Get the current language from session state, with fallback to 'en'."""
     if "current_language" not in st.session_state:
         # Check URL query param for language preference
-        query_params = st.query_params
-        lang_from_url = query_params.get("lang", "en")
+        lang_from_url = query_param(st.query_params, "lang") or "en"
         
         if lang_from_url in SUPPORTED_LANGUAGES:
             st.session_state.current_language = lang_from_url
