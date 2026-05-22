@@ -377,7 +377,6 @@ QUICK_TOPIC_MARKETS = {
                 ("Nippon India Nifty 50 Bees", "NIFTYBEES.NS", "INR"),
                 ("SBI Nifty 50 ETF", "SETFNIF50.NS", "INR"),
                 ("HDFC Nifty 50 ETF", "HDFCNIFTY.NS", "INR"),
-                ("Kotak Nifty 50 ETF", "KOTAKNIFTY.NS", "INR"),
             ],
             "United Kingdom": [
                 ("iShares Core FTSE 100 ETF", "ISF.L", "GBp"),
@@ -498,6 +497,41 @@ def _format_live_change(price, previous_close) -> str | None:
     return f"{pct:+.2f}%"
 
 
+def _live_change_score(symbol: str) -> float | None:
+    try:
+        live = load_live_price(symbol)
+        price = float(live.get("price"))
+        previous_close = float(live.get("previous_close"))
+    except (TypeError, ValueError, Exception):
+        return None
+
+    if price != price or previous_close != previous_close or previous_close <= 0:
+        return None
+
+    return ((price - previous_close) / previous_close) * 100
+
+
+def rank_available_stocks(
+    candidates: list[tuple[str, str, str]],
+    limit: int = 5,
+) -> list[tuple[str, str, str]]:
+    ranked = []
+    seen = set()
+    for stock in candidates:
+        symbol = stock[1]
+        if symbol in seen:
+            continue
+        seen.add(symbol)
+
+        score = _live_change_score(symbol)
+        if score is None:
+            continue
+        ranked.append((score, stock))
+
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    return [stock for _score, stock in ranked[:limit]]
+
+
 def get_live_market_quote(symbol: str, currency: str) -> tuple[str, str]:
     try:
         live = load_live_price(symbol)
@@ -514,7 +548,7 @@ def get_live_market_quote(symbol: str, currency: str) -> tuple[str, str]:
 
 def get_homepage_market_data(selected_countries: list[str]) -> tuple[list, list]:
     if not selected_countries:
-        return GLOBAL_MARKET["indexes"], GLOBAL_MARKET["stocks"]
+        return GLOBAL_MARKET["indexes"], rank_available_stocks(GLOBAL_MARKET["stocks"])
 
     indexes = []
     stocks = []
@@ -524,7 +558,7 @@ def get_homepage_market_data(selected_countries: list[str]) -> tuple[list, list]
             indexes.extend(market["indexes"])
             stocks.extend(market["stocks"])
 
-    return indexes[:4], stocks[:5]
+    return indexes[:4], rank_available_stocks(stocks)
 
 
 def get_quick_topic_stocks(topic: str, selected_countries: list[str]) -> list[tuple[str, str, str]]:
@@ -533,7 +567,7 @@ def get_quick_topic_stocks(topic: str, selected_countries: list[str]) -> list[tu
         return get_homepage_market_data(selected_countries)[1]
 
     if not selected_countries:
-        return topic_data["global"][:5]
+        return rank_available_stocks(topic_data["global"])
 
     stocks = []
     seen = set()
@@ -543,9 +577,7 @@ def get_quick_topic_stocks(topic: str, selected_countries: list[str]) -> list[tu
                 continue
             seen.add(stock[1])
             stocks.append(stock)
-            if len(stocks) >= 5:
-                return stocks
-    return stocks
+    return rank_available_stocks(stocks)
 
 
 def get_ai_picks(selected_countries: list[str]) -> list[tuple[str, str, str]]:
