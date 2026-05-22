@@ -108,7 +108,8 @@ _handle_auth_callback()
 
 from utils.styles  import inject_css
 from utils.i18n    import t, set_language, get_current_language, get_available_languages, get_language_flag
-from utils.data    import load_live_price
+from utils.data    import load_analysis_data, load_live_price
+from utils.recommendation import generate_recommendation
 from ui.auth       import render_auth_panel, render_login_section
 from ui.alerts     import render_notifications_button
 from ui.search     import (
@@ -1007,9 +1008,112 @@ def _live_change_score(symbol: str) -> float | None:
     return ((price - previous_close) / previous_close) * 100
 
 
+def _analysis_stock_info(df) -> dict:
+    close = df.get("Close")
+    if close is None:
+        return {}
+
+    close = close.dropna()
+    if close.empty:
+        return {}
+
+    recent = close.tail(252)
+    return {
+        "fiftyTwoWeekHigh": float(recent.max()),
+        "fiftyTwoWeekLow": float(recent.min()),
+    }
+
+
+def _apply_live_price(df, symbol: str):
+    if df.empty or "Close" not in df.columns:
+        return df
+
+    try:
+        live = load_live_price(symbol)
+        price = float(live.get("price"))
+    except (TypeError, ValueError, Exception):
+        return df
+
+    if price != price or price <= 0:
+        return df
+
+    live_df = df.copy()
+    live_df.loc[live_df.index[-1], "Close"] = price
+    return live_df
+
+
+def _recent_momentum(close, sessions: int) -> float:
+    close = close.dropna()
+    if len(close) <= sessions:
+        return 0.0
+
+    start = close.iloc[-sessions - 1]
+    end = close.iloc[-1]
+    if not start or start != start:
+        return 0.0
+
+    return float(((end - start) / start) * 100)
+
+
+def _range_position(close) -> float:
+    close = close.dropna().tail(252)
+    if close.empty:
+        return 0.5
+
+    low = close.min()
+    high = close.max()
+    if high <= low:
+        return 0.5
+
+    return float((close.iloc[-1] - low) / (high - low))
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _live_analysis_score(symbol: str, topic: str) -> float | None:
+    try:
+        df = load_analysis_data(symbol)
+    except Exception:
+        return None
+
+    if df.empty or "Close" not in df.columns:
+        return None
+
+    df = _apply_live_price(df, symbol)
+    close = df["Close"].dropna()
+    if len(close) < 30:
+        return None
+
+    try:
+        *_, score_pct = generate_recommendation(df, _analysis_stock_info(df), [])
+    except Exception:
+        return None
+
+    live_change = _live_change_score(symbol) or 0.0
+    mom5 = _recent_momentum(close, 5)
+    mom20 = _recent_momentum(close, 20)
+    range_pos = _range_position(close)
+
+    if topic == "undervalued":
+        value_score = (1 - range_pos) * 55
+        recovery_score = max(min(mom20, 20), -20) * 0.6
+        return value_score + (score_pct * 0.45) + recovery_score + (live_change * 0.8)
+
+    if topic == "best_etfs":
+        return score_pct + (mom20 * 0.55) + (live_change * 1.2)
+
+    if topic == "ai":
+        return score_pct + (mom20 * 0.75) + (mom5 * 0.5) + (live_change * 1.5)
+
+    if topic == "dividend":
+        return score_pct + (mom20 * 0.35) + (live_change * 0.9)
+
+    return score_pct + (mom20 * 0.5) + (live_change * 1.5)
+
+
 def rank_available_stocks(
     candidates: list[tuple[str, str, str]],
     limit: int = 5,
+    topic: str = "trending",
 ) -> list[tuple[str, str, str]]:
     ranked = []
     seen = set()
@@ -1019,7 +1123,9 @@ def rank_available_stocks(
             continue
         seen.add(symbol)
 
-        score = _live_change_score(symbol)
+        score = _live_analysis_score(symbol, topic)
+        if score is None:
+            score = _live_change_score(symbol)
         if score is None:
             continue
         ranked.append((score, stock))
@@ -1063,7 +1169,7 @@ def get_quick_topic_stocks(topic: str, selected_countries: list[str]) -> list[tu
         return get_homepage_market_data(selected_countries)[1]
 
     if not selected_countries:
-        return rank_available_stocks(topic_data["global"])
+        return rank_available_stocks(topic_data["global"], topic=topic)
 
     stocks = []
     seen = set()
@@ -1082,7 +1188,7 @@ def get_quick_topic_stocks(topic: str, selected_countries: list[str]) -> list[tu
                 continue
             seen.add(stock[1])
             stocks.append(stock)
-    return rank_available_stocks(stocks)
+    return rank_available_stocks(stocks, topic=topic)
 
 
 def get_ai_picks(selected_countries: list[str]) -> list[tuple[str, str, str]]:
