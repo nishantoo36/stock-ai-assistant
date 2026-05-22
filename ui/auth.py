@@ -17,6 +17,8 @@ SESSION_COOKIE_HOURS = 4
 ACCESS_COOKIE = "stock_ai_access_token"
 REFRESH_COOKIE = "stock_ai_refresh_token"
 LOGOUT_FLAG = "auth_logout_requested"
+OAUTH_VERIFIER_COOKIE = "stock_ai_oauth_verifier"
+PENDING_GOOGLE_AUTH = "pending_google_auth"
 
 
 def _attr(obj: Any, name: str, default: Any = None) -> Any:
@@ -51,6 +53,20 @@ def _persist_auth_session(access_token: str | None, refresh_token: str | None) -
         components.html(_cookie_script(access_token, refresh_token), height=0, width=0)
 
 
+def _oauth_redirect_script(auth_url: str, code_verifier: str, redirect: bool = True) -> str:
+    redirect_script = f"window.top.location.href = {auth_url!r};" if redirect else ""
+    return f"""
+    <script>
+    const verifierCookie = "{OAUTH_VERIFIER_COOKIE}=" + encodeURIComponent({code_verifier!r}) + "; path=/; max-age=600; SameSite=Lax";
+    document.cookie = verifierCookie;
+    try {{
+        window.parent.document.cookie = verifierCookie;
+    }} catch (err) {{}}
+    {redirect_script}
+    </script>
+    """
+
+
 def _clear_persistent_auth_session() -> None:
     components.html(_cookie_script(clear=True), height=1, width=1)
 
@@ -83,6 +99,7 @@ def store_auth_session(response: Any) -> bool:
         "refresh_token": refresh_token,
     }
     st.session_state.pop(LOGOUT_FLAG, None)
+    st.session_state.pop(PENDING_GOOGLE_AUTH, None)
     return True
 
 
@@ -122,6 +139,7 @@ def get_access_token() -> str | None:
 def logout() -> None:
     st.session_state.pop("auth_user", None)
     st.session_state.pop("auth_session", None)
+    st.session_state.pop(PENDING_GOOGLE_AUTH, None)
     st.session_state[LOGOUT_FLAG] = True
 
 
@@ -141,6 +159,19 @@ def _render_sign_in_options(key_prefix: str = "auth") -> None:
     """Render available sign-in methods."""
     st.markdown("### 🔐 Quick Sign In")
 
+    pending_auth = st.session_state.get(PENDING_GOOGLE_AUTH)
+    if pending_auth:
+        components.html(
+            _oauth_redirect_script("", pending_auth["code_verifier"], redirect=False),
+            height=0,
+            width=0,
+        )
+        st.link_button(
+            "Continue with Google",
+            pending_auth["url"],
+            use_container_width=True,
+        )
+
     if st.button(
         "🔵 Sign in with Google",
         key=f"{key_prefix}_google_oauth",
@@ -149,8 +180,22 @@ def _render_sign_in_options(key_prefix: str = "auth") -> None:
         try:
             response = sign_in_with_google()
             auth_url = _attr(response, "url")
-            if auth_url:
-                st.markdown(f"[Click here to sign in with Google]({auth_url})")
+            code_verifier = _attr(response, "code_verifier")
+            if auth_url and code_verifier:
+                st.session_state[PENDING_GOOGLE_AUTH] = {
+                    "url": auth_url,
+                    "code_verifier": code_verifier,
+                }
+                components.html(
+                    _oauth_redirect_script("", code_verifier, redirect=False),
+                    height=0,
+                    width=0,
+                )
+                st.link_button(
+                    "Continue with Google",
+                    auth_url,
+                    use_container_width=True,
+                )
             else:
                 st.error("Failed to get Google sign-in URL")
         except Exception as exc:
