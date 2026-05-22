@@ -62,18 +62,17 @@ def _handle_auth_callback() -> None:
     access_token = _query_param(query_params, "access_token")
     refresh_token = _query_param(query_params, "refresh_token")
     auth_code = _query_param(query_params, "code")
-    auth_state = _query_param(query_params, "state")
+    oauth_verifier = _query_param(query_params, "oauth_verifier")
 
     if auth_code:
         try:
-            from utils.supabase_client import exchange_oauth_code, parse_oauth_state
+            from utils.supabase_client import exchange_oauth_code
 
             pending_auth = st.session_state.get(PENDING_GOOGLE_AUTH) or {}
-            state_auth = parse_oauth_state(auth_state)
             code_verifier = (
                 st.context.cookies.get(OAUTH_VERIFIER_COOKIE)
                 or pending_auth.get("code_verifier")
-                or state_auth.get("code_verifier")
+                or oauth_verifier
             )
             if not code_verifier:
                 st.error(
