@@ -4,10 +4,13 @@ Login, signup, and logout UI backed by Supabase Auth.
 
 from __future__ import annotations
 from html import escape
+from json import dumps
 from typing import Any
+
 import streamlit as st
 import streamlit.components.v1 as components
 
+from utils.common import attr
 from utils.i18n import t
 from utils.supabase_client import (
     get_public_supabase_client,
@@ -20,12 +23,6 @@ REFRESH_COOKIE = "stock_ai_refresh_token"
 LOGOUT_FLAG = "auth_logout_requested"
 OAUTH_VERIFIER_COOKIE = "stock_ai_oauth_verifier"
 PENDING_GOOGLE_AUTH = "pending_google_auth"
-
-
-def _attr(obj: Any, name: str, default: Any = None) -> Any:
-    if isinstance(obj, dict):
-        return obj.get(name, default)
-    return getattr(obj, name, default)
 
 
 def _cookie_script(access_token: str = "", refresh_token: str = "", clear: bool = False) -> str:
@@ -105,18 +102,18 @@ def persist_current_auth_session() -> None:
 
 
 def store_auth_session(response: Any) -> bool:
-    session = _attr(response, "session")
-    user = _attr(response, "user")
+    session = attr(response, "session")
+    user = attr(response, "user")
     if not session or not user:
         return False
 
-    access_token = _attr(session, "access_token")
-    refresh_token = _attr(session, "refresh_token")
+    access_token = attr(session, "access_token")
+    refresh_token = attr(session, "refresh_token")
 
     st.session_state.auth_user = {
-        "id": _attr(user, "id"),
-        "email": _attr(user, "email"),
-        "phone": _attr(user, "phone"),
+        "id": attr(user, "id"),
+        "email": attr(user, "email"),
+        "phone": attr(user, "phone"),
     }
     st.session_state.auth_session = {
         "access_token": access_token,
@@ -179,56 +176,61 @@ def render_login_required_dialog() -> None:
     _dialog()
 
 
-def _render_google_sign_in_link(auth_url: str) -> None:
+def _render_google_sign_in_link(auth_url: str, code_verifier: str) -> None:
+    safe_url = escape(auth_url, quote=True)
+    verifier_js = dumps(code_verifier)
+    auth_url_js = dumps(auth_url)
     st.markdown(
-        f"""
-        <a
-            href="{escape(auth_url, quote=True)}"
-            target="_top"
-            rel="noopener"
-            style="
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                width:100%;
-                min-height:38px;
-                padding:0.45rem 0.75rem;
-                border:1px solid rgba(49, 51, 63, 0.2);
-                border-radius:0.5rem;
-                color:inherit;
-                text-decoration:none;
-                font-weight:400;
-                line-height:1.6;
-                box-sizing:border-box;
-            "
-        >
-            🔵 Sign in with Google
-        </a>
-        """,
+        (
+            f'<a href="{safe_url}" target="_top" rel="noopener" '
+            'onclick=\''
+            'const secureCookie = window.location.protocol === "https:" ? "; Secure" : "";'
+            f'const verifierCookie = "{OAUTH_VERIFIER_COOKIE}=" + '
+            f'encodeURIComponent({verifier_js}) + '
+            '"; path=/; max-age=600; SameSite=Lax" + secureCookie;'
+            'document.cookie = verifierCookie;'
+            'try { window.parent.document.cookie = verifierCookie; } catch (err) {}'
+            f'window.top.location.href = {auth_url_js};'
+            'return false;'
+            '\' '
+            'style="display:flex;align-items:center;justify-content:center;'
+            'width:100%;min-height:38px;padding:0.45rem 0.75rem;'
+            'border:1px solid rgba(49, 51, 63, 0.2);border-radius:0.5rem;'
+            'color:inherit;text-decoration:none;font-weight:400;line-height:1.6;'
+            'box-sizing:border-box;">🔵 Sign in with Google</a>'
+        ),
         unsafe_allow_html=True,
     )
 
 
-def _render_sign_in_options(key_prefix: str = "auth") -> None:
+def _store_pending_google_auth(auth_url: str, code_verifier: str) -> None:
+    st.session_state[PENDING_GOOGLE_AUTH] = {
+        "url": auth_url,
+        "code_verifier": code_verifier,
+    }
+
+
+def _persist_oauth_verifier_cookie(code_verifier: str) -> None:
+    # Keep the cookie fallback, while the callback URL carries the verifier.
+    components.html(
+        _oauth_redirect_script("", code_verifier, redirect=False),
+        height=0,
+        width=0,
+    )
+
+
+def _render_sign_in_options() -> None:
     """Render available sign-in methods."""
     st.markdown("### 🔐 Quick Sign In")
 
     try:
         response = sign_in_with_google()
-        auth_url = _attr(response, "url")
-        code_verifier = _attr(response, "code_verifier")
+        auth_url = attr(response, "url")
+        code_verifier = attr(response, "code_verifier")
         if auth_url and code_verifier:
-            st.session_state[PENDING_GOOGLE_AUTH] = {
-                "url": auth_url,
-                "code_verifier": code_verifier,
-            }
-            # Keep the cookie fallback, while the callback URL carries the verifier.
-            components.html(
-                _oauth_redirect_script("", code_verifier, redirect=False),
-                height=0,
-                width=0,
-            )
-            _render_google_sign_in_link(auth_url)
+            _store_pending_google_auth(auth_url, code_verifier)
+            _persist_oauth_verifier_cookie(code_verifier)
+            _render_google_sign_in_link(auth_url, code_verifier)
         else:
             st.error("Failed to get Google sign-in URL")
     except Exception as exc:
@@ -237,12 +239,8 @@ def _render_sign_in_options(key_prefix: str = "auth") -> None:
             st.error(f"Google sign-in error: {str(exc)}")
             return
 
-        components.html(
-            _oauth_redirect_script("", pending_auth["code_verifier"], redirect=False),
-            height=0,
-            width=0,
-        )
-        _render_google_sign_in_link(pending_auth["url"])
+        _persist_oauth_verifier_cookie(pending_auth["code_verifier"])
+        _render_google_sign_in_link(pending_auth["url"], pending_auth["code_verifier"])
 
 
 def render_auth_panel() -> None:
@@ -260,7 +258,7 @@ def render_auth_panel() -> None:
                 st.rerun()
             return
 
-        _render_sign_in_options("account")
+        _render_sign_in_options()
 
 
 def render_login_section() -> None:
@@ -273,7 +271,7 @@ def render_login_section() -> None:
     with st.container(border=True):
         col_body, col_close = st.columns([5, 1])
         with col_body:
-            _render_sign_in_options("inline")
+            _render_sign_in_options()
         with col_close:
             if st.button("X", key="close_inline_login", use_container_width=True):
                 st.session_state.show_login = False
