@@ -7,10 +7,28 @@ service-role key must never be placed in st.secrets for this app.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import streamlit as st
+
+
+logger = logging.getLogger(__name__)
+
+AUTH_QUERY_KEYS = {
+    "access_token",
+    "code",
+    "error",
+    "error_code",
+    "error_description",
+    "expires_in",
+    "provider_refresh_token",
+    "provider_token",
+    "refresh_token",
+    "state",
+    "token_type",
+}
 
 
 class SupabaseConfigError(RuntimeError):
@@ -32,15 +50,11 @@ def _validate_url(url: str, setting_name: str) -> str:
     return url.rstrip("/")
 
 
-def _is_local_url(url: str) -> bool:
-    parsed = urlparse(url)
-    return parsed.hostname in {"localhost", "127.0.0.1", "::1"}
-
-
-def _with_query_params(url: str, params: dict[str, str]) -> str:
+def _strip_auth_query_params(url: str) -> str:
     parsed = urlparse(url)
     query_params = dict(parse_qsl(parsed.query, keep_blank_values=True))
-    query_params.update({key: value for key, value in params.items() if value})
+    for key in AUTH_QUERY_KEYS:
+        query_params.pop(key, None)
     return urlunparse(parsed._replace(query=urlencode(query_params)))
 
 
@@ -58,31 +72,30 @@ def get_supabase_config() -> tuple[str, str]:
     return _validate_url(url, "SUPABASE_URL"), key
 
 
-def get_auth_redirect_url(extra_params: dict[str, str] | None = None) -> str:
+def get_auth_redirect_url() -> str:
     """
-    Return the local/deployed app URL Supabase should redirect back to.
+    Return the app URL Supabase should redirect back to.
 
-    Configure APP_URL in .streamlit/secrets.toml for deployed environments.
+    Prefer the active Streamlit URL when available so local and deployed runs
+    both redirect back to the environment they were opened in.
     """
     current_url = getattr(st.context, "url", "") or ""
     if current_url:
-        parsed = urlparse(current_url)
-        current_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")
+        current_url = _strip_auth_query_params(current_url).rstrip("/")
 
-    configured_url = _get_secret("APP_URL") or _get_secret("STREAMLIT_APP_URL")
-    if (
-        current_url
-        and configured_url
-        and _is_local_url(configured_url)
-        and not _is_local_url(current_url)
-    ):
-        url = current_url
-    else:
-        url = configured_url or current_url
+    configured_url = (
+        _get_secret("AUTH_REDIRECT_URL")
+        or _get_secret("APP_URL")
+        or _get_secret("STREAMLIT_APP_URL")
+    )
+    url = current_url or configured_url
 
     redirect_url = _validate_url(url or "http://localhost:8501", "APP_URL")
-    if extra_params:
-        redirect_url = _with_query_params(redirect_url, extra_params)
+    logger.info(
+        "Auth redirect selected: source=%s redirect=%s",
+        "current_url" if current_url else "configured_url",
+        redirect_url,
+    )
     return redirect_url
 
 
@@ -128,9 +141,10 @@ def get_user_supabase_client(access_token: str | None = None) -> Any:
 def exchange_oauth_code(auth_code: str, code_verifier: str | None = None) -> Any:
     """Exchange a Supabase OAuth callback code for an auth session."""
     client = get_public_supabase_client()
+    logger.info("Exchanging OAuth code for session")
     params = {
         "auth_code": auth_code,
-        "redirect_to": get_auth_redirect_url({"oauth_verifier": code_verifier or ""}),
+        "redirect_to": get_auth_redirect_url(),
     }
     if code_verifier:
         params["code_verifier"] = code_verifier
@@ -138,7 +152,7 @@ def exchange_oauth_code(auth_code: str, code_verifier: str | None = None) -> Any
     return client.auth.exchange_code_for_session(params)
 
 
-def sign_in_with_google() -> dict[str, Any]:
+def sign_in_with_google(redirect_to: str | None = None) -> dict[str, Any]:
     """
     Initiate Google OAuth sign in flow.
     Returns the OAuth response with URL for redirecting user to Google.
@@ -149,17 +163,20 @@ def sign_in_with_google() -> dict[str, Any]:
         url, _ = get_supabase_config()
         verifier = generate_pkce_verifier()
         challenge = generate_pkce_challenge(verifier)
+        redirect_to = redirect_to or get_auth_redirect_url()
         query = urlencode(
             {
                 "provider": "google",
-                "redirect_to": get_auth_redirect_url({"oauth_verifier": verifier}),
+                "redirect_to": redirect_to,
                 "code_challenge": challenge,
                 "code_challenge_method": "s256",
             }
         )
+        logger.info("Generated Google OAuth authorization URL")
         return {
             "url": f"{url}/auth/v1/authorize?{query}",
             "code_verifier": verifier,
         }
     except Exception as exc:
+        logger.exception("Google OAuth setup failed")
         raise SupabaseConfigError(f"Google OAuth failed: {str(exc)}") from exc

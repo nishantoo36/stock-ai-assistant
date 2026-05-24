@@ -3,17 +3,11 @@ Search bar, result cards, and no-results feedback.
 """
 
 import streamlit as st
-from html import escape
-from urllib.parse import urlencode
 
-from utils.common import query_param
+from utils.common import query_param, select_stock
 from utils.data import do_search
 from utils.i18n import t
 
-TYPE_ICON = {
-    "EQUITY": "📈", "ETF": "📊", "MUTUALFUND": "🏦",
-    "INDEX": "📉", "CRYPTOCURRENCY": "₿",
-}
 EXCH_LABEL = {
     "NSI": "🇮🇳 NSE", "BSE": "🇮🇳 BSE", "NMS": "🇺🇸 NASDAQ",
     "NYQ": "🇺🇸 NYSE", "LSE": "🇬🇧 LSE", "TOR": "🇨🇦 TSX",
@@ -26,15 +20,9 @@ def _format_currency_option(value: str) -> str:
     return t("search.currency_selector") if value == "CurrencySelector" else value
 
 
-def _stock_url(ticker: str, company_name: str) -> str:
-    params = {}
-    for key in ("lang", "q", "countries", "topic"):
-        value = query_param(st.query_params, key)
-        if value:
-            params[key] = value
-    params["stock"] = ticker
-    params["company"] = company_name
-    return f"?{urlencode(params)}"
+def _select_stock_button_label(item: dict) -> str:
+    exch = EXCH_LABEL.get(item["exchange"], item["exchange"])
+    return f"{item['name']}\n{item['ticker']} · {exch}"
 
 
 def render_search_bar() -> str:
@@ -141,7 +129,7 @@ def render_result_cards() -> None:
     if not st.session_state.search_results or st.session_state.selected_ticker:
         return
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     st.markdown(
         f"<p style='color:#94a3b8;font-size:0.82rem;font-weight:500;"
         f"letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px'>"
@@ -183,13 +171,11 @@ def render_result_cards() -> None:
 
     cols = st.columns(2)
     for i, item in enumerate(st.session_state.search_results):
-        icon  = TYPE_ICON.get(item["type"], "📌")
-        exch  = EXCH_LABEL.get(item["exchange"], item["exchange"])
         with cols[i % 2]:
-            st.markdown(
-                f'<a class="result-card-link" href="{_stock_url(item["ticker"], item["name"])}">'
-                f'{icon} <strong>{escape(item["name"])}</strong>'
-                f'<div class="meta">{escape(item["ticker"])} · {escape(exch)}</div>'
-                f'</a>',
-                unsafe_allow_html=True,
-            )
+            if st.button(
+                _select_stock_button_label(item),
+                key=f"search-result-{item['ticker']}-{i}",
+                use_container_width=True,
+            ):
+                select_stock(item["ticker"], item["name"])
+                st.rerun()
