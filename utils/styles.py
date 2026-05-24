@@ -179,7 +179,8 @@ def inject_css() -> None:
             color: inherit !important;
         }
 
-        .google-auth-link {
+        .google-auth-link,
+        .stLinkButton > a {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -196,10 +197,18 @@ def inject_css() -> None:
             box-sizing: border-box;
         }
 
-        .google-auth-link:hover {
+        .google-auth-link:hover,
+        .stLinkButton > a:hover {
             background: var(--surface2) !important;
             border-color: var(--accent) !important;
             color: var(--text) !important;
+        }
+
+        .google-auth-link span,
+        .google-auth-link *,
+        .stLinkButton > a span,
+        .stLinkButton > a * {
+            color: inherit !important;
         }
 
         .google-auth-icon {
