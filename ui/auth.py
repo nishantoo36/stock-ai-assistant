@@ -231,8 +231,6 @@ def _get_or_create_google_auth() -> str | None:
 def _render_google_sign_in_modal() -> None:
     @st.dialog(t("auth.social_login"), width="small")
     def _dialog() -> None:
-        st.caption("Let's login with google")
-
         auth_url = _get_or_create_google_auth()
         if not auth_url:
             st.error("Failed to get Google sign-in URL")
@@ -240,19 +238,49 @@ def _render_google_sign_in_modal() -> None:
 
         st.markdown(
             "<p style='margin:0 0 12px 0;color:var(--muted);font-size:0.88rem'>"
-            "Continue in the same tab. The app will return to this page after login."
+            "Continue with your Google account. The app will return to this page after login."
             "</p>",
             unsafe_allow_html=True,
         )
 
-        st.markdown(
+        st.html(
             f"""
+            <style>
+            .google-auth-link {{
+                display: flex;
+                width: 100%;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                min-height: 44px;
+                padding: 8px 12px;
+                border-radius: 10px;
+                border: 1px solid var(--border);
+                background: var(--surface);
+                color: var(--text);
+                text-decoration: none;
+                font: inherit;
+                font-weight: 600;
+                box-sizing: border-box;
+            }}
+            .google-auth-link:hover {{
+                background: var(--surface2);
+                border-color: var(--accent);
+                color: var(--text);
+            }}
+            .google-auth-link .google-auth-icon {{
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                line-height: 1;
+            }}
+            </style>
             <a class="google-auth-link" href="{escape(auth_url, quote=True)}" target="_top" rel="noopener noreferrer">
                 <span class="google-auth-icon" aria-hidden="true">↪</span>
                 <span>Login with Google</span>
             </a>
             """,
-            unsafe_allow_html=True,
+            width="stretch",
         )
 
     _dialog()
