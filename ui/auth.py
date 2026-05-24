@@ -3,22 +3,16 @@ Login, signup, and logout UI backed by Supabase Auth.
 """
 
 from __future__ import annotations
-from html import escape
-import logging
 from typing import Any
 
 import streamlit as st
-from streamlit.components.v1 import html as render_html
 
 from utils.common import attr
 from utils.i18n import t
 from utils.supabase_client import (
     get_public_supabase_client,
-    get_auth_redirect_url,
     sign_in_with_google,
 )
-
-logger = logging.getLogger(__name__)
 
 SESSION_COOKIE_HOURS = 4
 ACCESS_COOKIE = "stock_ai_access_token"
@@ -26,11 +20,15 @@ REFRESH_COOKIE = "stock_ai_refresh_token"
 LOGOUT_FLAG = "auth_logout_requested"
 OAUTH_VERIFIER_COOKIE = "stock_ai_oauth_verifier"
 PENDING_GOOGLE_AUTH = "pending_google_auth"
-SOCIAL_LOGIN_MODAL = "show_social_login_modal"
 
 
 def _render_script_iframe(script_html: str, height: int = 0, width: int = 0) -> None:
-    render_html(script_html, height=height, width=width)
+    html_renderer = getattr(getattr(st, "_main", None), "_html", None)
+    if callable(html_renderer):
+        html_renderer(script_html, height=height, width=width)
+        return
+
+    st.warning("Your Streamlit version cannot render auth helper scripts.")
 
 
 def _cookie_script(access_token: str = "", refresh_token: str = "", clear: bool = False) -> str:
@@ -56,7 +54,6 @@ def _cookie_script(access_token: str = "", refresh_token: str = "", clear: bool 
 
 def _persist_auth_session(access_token: str | None, refresh_token: str | None) -> None:
     if access_token and refresh_token:
-        logger.info("Persisting auth session cookies")
         _render_script_iframe(_cookie_script(access_token, refresh_token))
 
 
@@ -79,7 +76,6 @@ def _oauth_redirect_script(auth_url: str, code_verifier: str, redirect: bool = T
 
 
 def _clear_persistent_auth_session() -> None:
-    logger.info("Clearing persisted auth cookies")
     _render_script_iframe(_cookie_script(clear=True), height=1, width=1)
 
 
@@ -106,7 +102,6 @@ def persist_current_auth_session() -> None:
         return
 
     session = st.session_state.get("auth_session", {})
-    logger.info("Syncing current auth session to browser cookies")
     _persist_auth_session(session.get("access_token"), session.get("refresh_token"))
 
 
@@ -130,33 +125,27 @@ def store_auth_session(response: Any) -> bool:
     }
     st.session_state.pop(LOGOUT_FLAG, None)
     st.session_state.pop(PENDING_GOOGLE_AUTH, None)
-    logger.info("Auth session stored for user id=%s", attr(user, "id"))
     return True
 
 
 def restore_auth_session() -> None:
     """Restore a recent browser session after a refresh."""
     if st.session_state.get(LOGOUT_FLAG):
-        logger.info("Skipping auth restore because logout was requested")
         _clear_persistent_auth_session()
         return
 
     if is_logged_in():
-        logger.info("Skipping auth restore because user is already logged in")
         return
 
     access_token = st.context.cookies.get(ACCESS_COOKIE)
     refresh_token = st.context.cookies.get(REFRESH_COOKIE)
     if not access_token or not refresh_token:
-        logger.info("No persisted auth session found in cookies")
         return
 
     try:
-        logger.info("Restoring auth session from cookies")
         response = get_public_supabase_client().auth.set_session(access_token, refresh_token)
         store_auth_session(response)
     except Exception:
-        logger.exception("Failed to restore auth session from cookies")
         _clear_persistent_auth_session()
 
 
@@ -173,7 +162,6 @@ def get_access_token() -> str | None:
 
 
 def logout() -> None:
-    logger.info("Logout requested")
     st.session_state.pop("auth_user", None)
     st.session_state.pop("auth_session", None)
     st.session_state.pop(PENDING_GOOGLE_AUTH, None)
@@ -192,108 +180,51 @@ def render_login_required_dialog() -> None:
     _dialog()
 
 
+def _render_google_sign_in_link(auth_url: str) -> None:
+    st.link_button(
+        t("auth.google"),
+        auth_url,
+        icon=":material/login:",
+        use_container_width=True,
+    )
+
+
 def _store_pending_google_auth(auth_url: str, code_verifier: str) -> None:
     st.session_state[PENDING_GOOGLE_AUTH] = {
         "url": auth_url,
         "code_verifier": code_verifier,
     }
-    logger.info("Stored pending Google auth flow")
 
 
 def _persist_oauth_verifier_cookie(code_verifier: str) -> None:
     # Keep the cookie fallback, while the callback URL carries the verifier.
-    logger.info("Persisting OAuth verifier cookie")
     _render_script_iframe(
         _oauth_redirect_script("", code_verifier, redirect=False),
     )
 
 
-def _get_or_create_google_auth() -> str | None:
-    pending_auth = st.session_state.get(PENDING_GOOGLE_AUTH)
-    if pending_auth and pending_auth.get("url"):
-        return pending_auth["url"]
-
-    logger.info("Generating Google sign-in URL for modal flow")
-    redirect_to = get_auth_redirect_url()
-    response = sign_in_with_google(redirect_to)
-    auth_url = attr(response, "url")
-    code_verifier = attr(response, "code_verifier")
-    if auth_url and code_verifier:
-        _store_pending_google_auth(auth_url, code_verifier)
-        _persist_oauth_verifier_cookie(code_verifier)
-        logger.info("Google sign-in URL generated successfully: %s", auth_url)
-        return auth_url
-
-    logger.warning("Google sign-in flow did not return a usable URL")
-    return None
-
-
-def _render_google_sign_in_modal() -> None:
-    @st.dialog(t("auth.social_login"), width="small")
-    def _dialog() -> None:
-        auth_url = _get_or_create_google_auth()
-        if not auth_url:
-            st.error("Failed to get Google sign-in URL")
-            return
-
-        st.markdown(
-            "<p style='margin:0 0 12px 0;color:var(--muted);font-size:0.88rem'>"
-            "Continue with your Google account. The app will return to this page after login."
-            "</p>",
-            unsafe_allow_html=True,
-        )
-
-        st.html(
-            f"""
-            <style>
-            .google-auth-link {{
-                display: flex;
-                width: 100%;
-                align-items: center;
-                justify-content: center;
-                gap: 8px;
-                min-height: 44px;
-                padding: 8px 12px;
-                border-radius: 10px;
-                border: 1px solid var(--border);
-                background: var(--surface);
-                color: var(--text);
-                text-decoration: none;
-                font: inherit;
-                font-weight: 600;
-                box-sizing: border-box;
-            }}
-            .google-auth-link:hover {{
-                background: var(--surface2);
-                border-color: var(--accent);
-                color: var(--text);
-            }}
-            .google-auth-link .google-auth-icon {{
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                line-height: 1;
-            }}
-            </style>
-            <a class="google-auth-link" href="{escape(auth_url, quote=True)}" target="_top" rel="noopener noreferrer">
-                <span class="google-auth-icon" aria-hidden="true">↪</span>
-                <span>Login with Google</span>
-            </a>
-            """,
-            width="stretch",
-        )
-
-    _dialog()
-
-
 def _render_sign_in_options() -> None:
     """Render available sign-in methods."""
-    if st.button("Quick Sign in", key="open_social_login_modal", use_container_width=True):
-        st.session_state[SOCIAL_LOGIN_MODAL] = True
-        st.rerun()
+    st.markdown("### 🔐 Quick Sign In")
 
-    if st.session_state.pop(SOCIAL_LOGIN_MODAL, False):
-        _render_google_sign_in_modal()
+    try:
+        response = sign_in_with_google()
+        auth_url = attr(response, "url")
+        code_verifier = attr(response, "code_verifier")
+        if auth_url and code_verifier:
+            _store_pending_google_auth(auth_url, code_verifier)
+            _persist_oauth_verifier_cookie(code_verifier)
+            _render_google_sign_in_link(auth_url)
+        else:
+            st.error("Failed to get Google sign-in URL")
+    except Exception as exc:
+        pending_auth = st.session_state.get(PENDING_GOOGLE_AUTH)
+        if not pending_auth:
+            st.error(f"Google sign-in error: {str(exc)}")
+            return
+
+        _persist_oauth_verifier_cookie(pending_auth["code_verifier"])
+        _render_google_sign_in_link(pending_auth["url"])
 
 
 def render_auth_panel() -> None:
@@ -324,7 +255,6 @@ def render_login_section() -> None:
     with st.container(border=True):
         col_body, col_close = st.columns([5, 1])
         with col_body:
-            st.markdown("### 🔐 Quick Sign in")
             _render_sign_in_options()
         with col_close:
             if st.button("X", key="close_inline_login", use_container_width=True):
