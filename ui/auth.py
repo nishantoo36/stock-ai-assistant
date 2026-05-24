@@ -3,6 +3,7 @@ Login, signup, and logout UI backed by Supabase Auth.
 """
 
 from __future__ import annotations
+from html import escape
 import logging
 from typing import Any
 
@@ -209,7 +210,7 @@ def _persist_oauth_verifier_cookie(code_verifier: str) -> None:
 def _render_google_sign_in_link(auth_url: str) -> None:
     st.markdown(
         f"""
-        <a class="google-auth-link" href="{auth_url}" target="_top" rel="noopener noreferrer">
+        <a class="google-auth-link" href="{escape(auth_url, quote=True)}" target="_top" rel="noopener noreferrer">
             <span class="google-auth-icon" aria-hidden="true">↪</span>
             <span>{t("auth.google")}</span>
         </a>
