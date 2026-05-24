@@ -1,8 +1,8 @@
-import streamlit as st
-from html import escape
-from urllib.parse import urlencode
+import textwrap
 
-from utils.common import query_param as _query_param
+import streamlit as st
+
+from utils.common import query_param as _query_param, select_stock
 from utils.data import load_live_price
 from utils.i18n import t
 
@@ -31,6 +31,10 @@ def set_quick_topic(topic: str) -> None:
     st.query_params.pop("company", None)
     _set_query_param("topic", topic if topic != "trending" else None)
     st.rerun()
+
+
+def _short_reason(reason: str, width: int = 44) -> str:
+    return textwrap.shorten(reason, width=width, placeholder="...")
 
 
 COUNTRY_MARKETS = {
@@ -893,27 +897,19 @@ def _sync_countries_to_url(selected_countries: list[str]) -> None:
     st.session_state.countries_url_value = countries_value or None
 
 
-def stock_url(ticker: str, company_name: str) -> str:
-    params = {}
-    for key in ("lang", "q", "countries"):
-        value = _query_param(st.query_params, key)
-        if value:
-            params[key] = value
-    topic = _query_param(st.query_params, "topic")
-    if topic and topic != "trending":
-        params["topic"] = topic
-    params["stock"] = ticker
-    params["company"] = company_name
-    return f"?{urlencode(params)}"
-
-
-
 def render_homepage() -> None:
     if st.session_state.selected_ticker or st.session_state.search_results:
         return
 
     st.markdown("""
     <style>
+    .homepage-panel {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 18px;
+        background: var(--surface);
+    }
     .stock-card {
         display: block;
         background: var(--surface);
@@ -1016,7 +1012,13 @@ def render_homepage() -> None:
     for i, (label, symbol, market_currency) in enumerate(market_indexes):
         value, delta = get_live_market_quote(symbol, market_currency)
         with snapshot_cols[i % 4]:
-            st.metric(label, value, delta)
+            if st.button(
+                f"{label}\n{symbol} · {value} · {delta}",
+                key=f"snapshot-market-{symbol}",
+                use_container_width=True,
+            ):
+                select_stock(symbol, label)
+                st.rerun()
 
 
     # Main content
@@ -1045,14 +1047,13 @@ def render_homepage() -> None:
             if price == t("common.unavailable"):
                 continue
 
-            change_class = "positive" if change.startswith("+") else "negative" if change.startswith("-") else "neutral"
-            st.markdown(f"""
-            <a class="stock-card" href="{stock_url(symbol, stock)}">
-                <b>{escape(stock)}</b> <span style="color:#64748b;font-family:var(--mono);font-size:0.78rem">{escape(symbol)}</span><br>
-                {t("homepage.price")}: {price}<br>
-                {t("homepage.change")}: <span class="{change_class}">{change}</span>
-            </a>
-            """, unsafe_allow_html=True)
+            if st.button(
+                f"{stock}\n{symbol} · {price} · {change}",
+                key=f"homepage-stock-{symbol}",
+                use_container_width=True,
+            ):
+                select_stock(symbol, stock)
+                st.rerun()
             visible_count += 1
             if visible_count >= 5:
                 break
@@ -1063,11 +1064,13 @@ def render_homepage() -> None:
         ai_picks = get_ai_picks(selected_countries)
 
         for ticker, company_name, reason in ai_picks:
-            st.markdown(
-                f'<a class="ai-pick-link" href="{stock_url(ticker, company_name)}">'
-                f'{ticker} → {reason}</a>',
-                unsafe_allow_html=True,
-            )
+            if st.button(
+                f"{company_name}\n{ticker} · {_short_reason(reason)}",
+                key=f"homepage-ai-{ticker}",
+                use_container_width=True,
+            ):
+                select_stock(ticker, company_name)
+                st.rerun()
 
 
     # Educational section
