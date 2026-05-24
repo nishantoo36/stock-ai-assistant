@@ -26,6 +26,7 @@ REFRESH_COOKIE = "stock_ai_refresh_token"
 LOGOUT_FLAG = "auth_logout_requested"
 OAUTH_VERIFIER_COOKIE = "stock_ai_oauth_verifier"
 PENDING_GOOGLE_AUTH = "pending_google_auth"
+SOCIAL_LOGIN_MODAL = "show_social_login_modal"
 
 
 def _render_script_iframe(script_html: str, height: int = 0, width: int = 0) -> None:
@@ -207,45 +208,64 @@ def _persist_oauth_verifier_cookie(code_verifier: str) -> None:
     )
 
 
-def _render_google_sign_in_link(auth_url: str) -> None:
-    st.markdown(
-        f"""
-        <a class="google-auth-link" href="{escape(auth_url, quote=True)}" target="_top" rel="noopener noreferrer">
-            <span class="google-auth-icon" aria-hidden="true">↪</span>
-            <span>{t("auth.google")}</span>
-        </a>
-        """,
-        unsafe_allow_html=True,
-    )
+def _get_or_create_google_auth() -> str | None:
+    pending_auth = st.session_state.get(PENDING_GOOGLE_AUTH)
+    if pending_auth and pending_auth.get("url"):
+        return pending_auth["url"]
+
+    logger.info("Generating Google sign-in URL for modal flow")
+    redirect_to = get_auth_redirect_url()
+    response = sign_in_with_google(redirect_to)
+    auth_url = attr(response, "url")
+    code_verifier = attr(response, "code_verifier")
+    if auth_url and code_verifier:
+        _store_pending_google_auth(auth_url, code_verifier)
+        _persist_oauth_verifier_cookie(code_verifier)
+        logger.info("Google sign-in URL generated successfully: %s", auth_url)
+        return auth_url
+
+    logger.warning("Google sign-in flow did not return a usable URL")
+    return None
+
+
+def _render_google_sign_in_modal() -> None:
+    @st.dialog(t("auth.social_login"), width="small")
+    def _dialog() -> None:
+        st.caption("Let's login with google")
+
+        auth_url = _get_or_create_google_auth()
+        if not auth_url:
+            st.error("Failed to get Google sign-in URL")
+            return
+
+        st.markdown(
+            "<p style='margin:0 0 12px 0;color:var(--muted);font-size:0.88rem'>"
+            "Continue in the same tab. The app will return to this page after login."
+            "</p>",
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            f"""
+            <a class="google-auth-link" href="{escape(auth_url, quote=True)}" target="_top" rel="noopener noreferrer">
+                <span class="google-auth-icon" aria-hidden="true">↪</span>
+                <span>Login with Google</span>
+            </a>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    _dialog()
 
 
 def _render_sign_in_options() -> None:
     """Render available sign-in methods."""
-    st.markdown("### 🔐 Quick Sign In")
+    if st.button("Quick Sign in", key="open_social_login_modal", use_container_width=True):
+        st.session_state[SOCIAL_LOGIN_MODAL] = True
+        st.rerun()
 
-    try:
-        logger.info("Starting Google sign-in flow")
-        redirect_to = get_auth_redirect_url()
-        response = sign_in_with_google(redirect_to)
-        auth_url = attr(response, "url")
-        code_verifier = attr(response, "code_verifier")
-        if auth_url and code_verifier:
-            _store_pending_google_auth(auth_url, code_verifier)
-            _persist_oauth_verifier_cookie(code_verifier)
-            logger.info("Google sign-in URL generated successfully" + auth_url)
-            _render_google_sign_in_link(auth_url)
-        else:
-            logger.warning("Google sign-in flow did not return a usable URL")
-            st.error("Failed to get Google sign-in URL")
-    except Exception as exc:
-        logger.exception("Google sign-in flow failed")
-        pending_auth = st.session_state.get(PENDING_GOOGLE_AUTH)
-        if not pending_auth:
-            st.error(f"Google sign-in error: {str(exc)}")
-            return
-
-        _persist_oauth_verifier_cookie(pending_auth["code_verifier"])
-        _render_google_sign_in_link(pending_auth["url"])
+    if st.session_state.pop(SOCIAL_LOGIN_MODAL, False):
+        _render_google_sign_in_modal()
 
 
 def render_auth_panel() -> None:
@@ -276,6 +296,7 @@ def render_login_section() -> None:
     with st.container(border=True):
         col_body, col_close = st.columns([5, 1])
         with col_body:
+            st.markdown("### 🔐 Quick Sign in")
             _render_sign_in_options()
         with col_close:
             if st.button("X", key="close_inline_login", use_container_width=True):
