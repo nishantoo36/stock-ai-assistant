@@ -37,17 +37,38 @@ def _cookie_script(access_token: str = "", refresh_token: str = "", clear: bool 
         expires = "Thu, 01 Jan 1970 00:00:00 GMT"
         return f"""
         <script>
-        document.cookie = "{ACCESS_COOKIE}=; expires={expires}; max-age=0; path=/; SameSite=Lax";
-        document.cookie = "{REFRESH_COOKIE}=; expires={expires}; max-age=0; path=/; SameSite=Lax";
+        const clearAccessCookie = "{ACCESS_COOKIE}=; expires={expires}; max-age=0; path=/; SameSite=Lax";
+        const clearRefreshCookie = "{REFRESH_COOKIE}=; expires={expires}; max-age=0; path=/; SameSite=Lax";
+        document.cookie = clearAccessCookie;
+        document.cookie = clearRefreshCookie;
+        try {{
+            window.parent.document.cookie = clearAccessCookie;
+            window.parent.document.cookie = clearRefreshCookie;
+        }} catch (err) {{}}
+        try {{
+            window.top.document.cookie = clearAccessCookie;
+            window.top.document.cookie = clearRefreshCookie;
+        }} catch (err) {{}}
         </script>
         """
     else:
         max_age = SESSION_COOKIE_HOURS * 60 * 60
         return f"""
         <script>
-        const options = "path=/; max-age={max_age}; SameSite=Lax";
-        document.cookie = "{ACCESS_COOKIE}=" + encodeURIComponent({access_token!r}) + "; " + options;
-        document.cookie = "{REFRESH_COOKIE}=" + encodeURIComponent({refresh_token!r}) + "; " + options;
+        const secureCookie = window.location.protocol === "https:" ? "; Secure" : "";
+        const options = "path=/; max-age={max_age}; SameSite=Lax" + secureCookie;
+        const accessCookie = "{ACCESS_COOKIE}=" + encodeURIComponent({access_token!r}) + "; " + options;
+        const refreshCookie = "{REFRESH_COOKIE}=" + encodeURIComponent({refresh_token!r}) + "; " + options;
+        document.cookie = accessCookie;
+        document.cookie = refreshCookie;
+        try {{
+            window.parent.document.cookie = accessCookie;
+            window.parent.document.cookie = refreshCookie;
+        }} catch (err) {{}}
+        try {{
+            window.top.document.cookie = accessCookie;
+            window.top.document.cookie = refreshCookie;
+        }} catch (err) {{}}
         </script>
         """
 
