@@ -113,6 +113,7 @@
     "rate_limit_action": "✅ कृपया 2 मिनट प्रतीक्षा करें और पुनः प्रयास करें।",
     "rate_limit_help": "यदि समस्या बनी रहती है, तो पहले एक अलग स्टॉक खोजने का प्रयास करें, फिर वापस आएं।",
     "price_unavailable": "कीमत उपलब्ध नहीं",
+    "metadata_unavailable": "Yahoo Finance मेटाडेटा अस्थायी रूप से उपलब्ध नहीं है, इसलिए ऐप केवल कीमत इतिहास के साथ जारी रहेगा।",
     "no_price_data_title": "**{ticker}** के लिए कोई कीमत डेटा उपलब्ध नहीं है।",
     "no_price_data_help": "इसका आमतौर पर मतलब है कि एक्सचेंज सार्वजनिक बाजार डेटा प्रदान नहीं करता (जैसे डार्क पूल या वैकल्पिक ट्रेडिंग स्थल), या टिकर डीलिस्ट हो चुका है।\n\n**उसी कंपनी की कोई दूसरी लिस्टिंग चुनकर देखें** — जैसे प्राथमिक एक्सचेंज (STO, NYSE, FRA, आदि)।"
   },
@@ -166,6 +167,29 @@
     "period_6m": "6 महीने",
     "period_1y": "1 साल",
     "period_5y": "5 साल"
+  },
+  "forecast": {
+    "title": "🔮 TimesFM AI पूर्वानुमान",
+    "scenario_target": "समाचार + ट्रेंड परिदृश्य",
+    "model_target": "TimesFM आधाररेखा",
+    "direction": "पूर्वानुमान झुकाव",
+    "directions": {
+      "bullish": "तेजी",
+      "bearish": "मंदी",
+      "neutral": "तटस्थ"
+    },
+    "interval": "80% पूर्वानुमान अंतराल",
+    "scenario_line": "परिदृश्य पूर्वानुमान",
+    "install_note": "TimesFM 2.5 PyTorch का उपयोग करता है और पहली बार उपयोग पर Hugging Face से मॉडल वेट डाउनलोड करता है। उत्पादन में सक्षम करने से पहले requirements.txt से निर्भरताएं इंस्टॉल करें।",
+    "method_note": "पूर्वानुमान अवधि: {horizon} ट्रेडिंग दिन। TimesFM ऐतिहासिक क्लोज कीमतों का उपयोग करता है; समाचार रुझान ({news}) और 20-दिन का ट्रेंड ({trend}) एक छोटा पारदर्शी परिदृश्य समायोजन लागू करते हैं।",
+    "messages": {
+      "ready": "दैनिक क्लोज इतिहास से TimesFM 2.5 पूर्वानुमान तैयार किया गया।",
+      "disabled": "TimesFM पूर्वानुमान TIMESFM_ENABLED द्वारा बंद है।",
+      "insufficient_data": "TimesFM के लिए कम से कम {required} मान्य दैनिक क्लोज चाहिए; {found} मिले।",
+      "missing_dependency": "TimesFM निर्भरता गायब है: {dependency}. requirements.txt से PyTorch और TimesFM इंस्टॉल करें।",
+      "failed": "TimesFM पूर्वानुमान विफल हुआ: {error}",
+      "invalid_output": "TimesFM ने अमान्य पूर्वानुमान आकार या NaN मान लौटाए।"
+    }
   },
   "risk": {
     "high": "उच्च",

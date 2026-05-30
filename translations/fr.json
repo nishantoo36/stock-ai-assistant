@@ -113,6 +113,7 @@
     "rate_limit_action": "✅ Veuillez attendre 2 minutes et réessayer.",
     "rate_limit_help": "Si le problème persiste, essayez d'abord de chercher une action différente, puis revenez.",
     "price_unavailable": "Prix non disponible",
+    "metadata_unavailable": "Les métadonnées Yahoo Finance sont temporairement indisponibles ; l'application continue donc avec l'historique des prix uniquement.",
     "no_price_data_title": "Aucune donnée de prix n'est disponible pour **{ticker}**.",
     "no_price_data_help": "Cela signifie généralement que l'échange ne fournit pas de données de marché publiques (par exemple, pools sombres, lieux alternatifs), ou que le ticker est radié.\n\n**Essayez de sélectionner une cotation différente** pour la même société — par exemple la bourse principale (STO, NYSE, FRA, etc.)."
   },
@@ -166,6 +167,29 @@
     "period_6m": "6M",
     "period_1y": "1A",
     "period_5y": "5A"
+  },
+  "forecast": {
+    "title": "🔮 Prévision IA TimesFM",
+    "scenario_target": "Scénario actualités + tendance",
+    "model_target": "Base TimesFM",
+    "direction": "Biais de prévision",
+    "directions": {
+      "bullish": "Haussier",
+      "bearish": "Baissier",
+      "neutral": "Neutre"
+    },
+    "interval": "Intervalle de prédiction à 80 %",
+    "scenario_line": "Prévision du scénario",
+    "install_note": "TimesFM 2.5 utilise PyTorch et télécharge les poids du modèle depuis Hugging Face lors de la première utilisation. Installez les dépendances depuis requirements.txt avant de l'activer en production.",
+    "method_note": "Horizon de prévision : {horizon} jours de bourse. TimesFM utilise les prix de clôture historiques ; le sentiment des actualités ({news}) et la tendance sur 20 jours ({trend}) appliquent un petit ajustement de scénario transparent.",
+    "messages": {
+      "ready": "Prévision TimesFM 2.5 générée à partir de l'historique des clôtures quotidiennes.",
+      "disabled": "La prévision TimesFM est désactivée par TIMESFM_ENABLED.",
+      "insufficient_data": "TimesFM nécessite au moins {required} clôtures quotidiennes valides ; {found} trouvées.",
+      "missing_dependency": "Dépendance TimesFM manquante : {dependency}. Installez PyTorch et TimesFM depuis requirements.txt.",
+      "failed": "La prévision TimesFM a échoué : {error}",
+      "invalid_output": "TimesFM a renvoyé une forme de prévision invalide ou des valeurs NaN."
+    }
   },
   "risk": {
     "high": "Élevé",

@@ -28,6 +28,8 @@ MODEL_ID = "google/timesfm-2.5-200m-pytorch"
 class TimesFMForecast:
     available: bool
     message: str
+    message_key: str | None = None
+    message_params: dict | None = None
     horizon: int = DEFAULT_HORIZON
     last_price: float | None = None
     model_target: float | None = None
@@ -42,6 +44,14 @@ class TimesFMForecast:
     scenario_values: list[float] | None = None
     lower_80: list[float] | None = None
     upper_80: list[float] | None = None
+
+
+def _unavailable(message_key: str, fallback: str, **params) -> TimesFMForecast:
+    return TimesFMForecast(False, fallback, message_key, params or None)
+
+
+def _is_forecast_enabled() -> bool:
+    return os.getenv("TIMESFM_ENABLED", "true").strip().lower() not in {"0", "false", "no"}
 
 
 def _history_close(df: pd.DataFrame) -> tuple[pd.Series, pd.Timestamp | None]:
@@ -84,6 +94,38 @@ def _scenario_adjustment_pct(news_score: int, trend_return_pct: float) -> float:
     return float(np.clip(news_tilt + trend_tilt, -2.5, 2.5))
 
 
+def _return_pct(target: float, base: float) -> float:
+    return ((target - base) / base) * 100 if base > 0 else 0.0
+
+
+def _direction_from_return(return_pct: float) -> str:
+    if return_pct >= 1:
+        return "Bullish"
+    if return_pct <= -1:
+        return "Bearish"
+    return "Neutral"
+
+
+def _future_business_dates(last_date: pd.Timestamp | None, horizon: int) -> list[pd.Timestamp]:
+    start_date = (last_date or pd.Timestamp.today()).normalize()
+    return list(pd.bdate_range(start=start_date + pd.offsets.BDay(1), periods=horizon))
+
+
+def _quantile_band(quantiles: np.ndarray) -> tuple[list[float] | None, list[float] | None]:
+    if quantiles.ndim != 2 or quantiles.shape[1] <= 9:
+        return None, None
+    return quantiles[:, 1].tolist(), quantiles[:, 9].tolist()
+
+
+def _build_scenario(point: np.ndarray, news_list: list[dict], close: pd.Series) -> tuple:
+    news_score, news_label, _ = analyze_news_sentiment(news_list)
+    trend_return_pct = _recent_trend_pct(close)
+    adjustment_pct = _scenario_adjustment_pct(news_score, trend_return_pct)
+    ramp = np.linspace(adjustment_pct / len(point), adjustment_pct, len(point)) / 100
+    scenario = point * (1 + ramp)
+    return scenario, news_label, trend_return_pct
+
+
 @st.cache_resource(show_spinner=False)
 def _load_timesfm_model():
     import torch
@@ -105,22 +147,7 @@ def _load_timesfm_model():
     return model
 
 
-def build_timesfm_forecast(
-    df: pd.DataFrame,
-    news_list: list[dict],
-    horizon: int = DEFAULT_HORIZON,
-) -> TimesFMForecast:
-    if os.getenv("TIMESFM_ENABLED", "true").strip().lower() in {"0", "false", "no"}:
-        return TimesFMForecast(False, "TimesFM forecasting is disabled by TIMESFM_ENABLED.")
-
-    close, last_date = _history_close(df)
-    if len(close) < MIN_CONTEXT_POINTS:
-        return TimesFMForecast(
-            False,
-            f"Need at least {MIN_CONTEXT_POINTS} valid daily closes for TimesFM; found {len(close)}.",
-        )
-
-    context = close.tail(MAX_CONTEXT).to_numpy(dtype=np.float32)
+def _run_timesfm(context: np.ndarray, horizon: int) -> tuple[np.ndarray, np.ndarray] | TimesFMForecast:
     try:
         model = _load_timesfm_model()
         point_forecast, quantile_forecast = model.forecast(
@@ -128,46 +155,67 @@ def build_timesfm_forecast(
             inputs=[context],
         )
     except ModuleNotFoundError as exc:
-        return TimesFMForecast(
-            False,
+        return _unavailable(
+            "forecast.messages.missing_dependency",
             f"Missing TimesFM dependency: {exc.name}. Install with `pip install 'timesfm[torch]'`.",
+            dependency=exc.name or "unknown",
         )
     except Exception as exc:
-        return TimesFMForecast(False, f"TimesFM forecast failed: {exc}")
+        return _unavailable(
+            "forecast.messages.failed",
+            f"TimesFM forecast failed: {exc}",
+            error=str(exc),
+        )
 
-    point = np.asarray(point_forecast[0], dtype=float)
-    quantiles = np.asarray(quantile_forecast[0], dtype=float)
+    return np.asarray(point_forecast[0], dtype=float), np.asarray(quantile_forecast[0], dtype=float)
+
+
+def build_timesfm_forecast(
+    df: pd.DataFrame,
+    news_list: list[dict],
+    horizon: int = DEFAULT_HORIZON,
+) -> TimesFMForecast:
+    if not _is_forecast_enabled():
+        return _unavailable(
+            "forecast.messages.disabled",
+            "TimesFM forecasting is disabled by TIMESFM_ENABLED.",
+        )
+
+    close, last_date = _history_close(df)
+    if len(close) < MIN_CONTEXT_POINTS:
+        return _unavailable(
+            "forecast.messages.insufficient_data",
+            f"Need at least {MIN_CONTEXT_POINTS} valid daily closes for TimesFM; found {len(close)}.",
+            required=MIN_CONTEXT_POINTS,
+            found=len(close),
+        )
+
+    context = close.tail(MAX_CONTEXT).to_numpy(dtype=np.float32)
+    model_result = _run_timesfm(context, horizon)
+    if isinstance(model_result, TimesFMForecast):
+        return model_result
+
+    point, quantiles = model_result
     if point.shape[0] != horizon or np.isnan(point).any():
-        return TimesFMForecast(False, "TimesFM returned an invalid forecast shape or NaN values.")
+        return _unavailable(
+            "forecast.messages.invalid_output",
+            "TimesFM returned an invalid forecast shape or NaN values.",
+        )
 
     last_price = float(close.iloc[-1])
     model_target = float(point[-1])
-    model_return_pct = ((model_target - last_price) / last_price) * 100 if last_price > 0 else 0.0
+    model_return_pct = _return_pct(model_target, last_price)
 
-    news_score, news_label, _ = analyze_news_sentiment(news_list)
-    trend_return_pct = _recent_trend_pct(close)
-    adjustment_pct = _scenario_adjustment_pct(news_score, trend_return_pct)
-    ramp = np.linspace(adjustment_pct / horizon, adjustment_pct, horizon) / 100
-    scenario = point * (1 + ramp)
+    scenario, news_label, trend_return_pct = _build_scenario(point, news_list, close)
     scenario_target = float(scenario[-1])
-    scenario_return_pct = ((scenario_target - last_price) / last_price) * 100 if last_price > 0 else 0.0
+    scenario_return_pct = _return_pct(scenario_target, last_price)
+    lower_80, upper_80 = _quantile_band(quantiles)
 
-    if scenario_return_pct >= 1:
-        direction = "Bullish"
-    elif scenario_return_pct <= -1:
-        direction = "Bearish"
-    else:
-        direction = "Neutral"
-
-    start_date = (last_date or pd.Timestamp.today()).normalize()
-    dates = list(pd.bdate_range(start=start_date + pd.offsets.BDay(1), periods=horizon))
-
-    lower_80 = quantiles[:, 1] if quantiles.ndim == 2 and quantiles.shape[1] > 9 else None
-    upper_80 = quantiles[:, 9] if quantiles.ndim == 2 and quantiles.shape[1] > 9 else None
 
     return TimesFMForecast(
         available=True,
         message="TimesFM 2.5 forecast generated from daily close history.",
+        message_key="forecast.messages.ready",
         horizon=horizon,
         last_price=last_price,
         model_target=model_target,
@@ -176,10 +224,10 @@ def build_timesfm_forecast(
         scenario_return_pct=float(scenario_return_pct),
         trend_return_pct=float(trend_return_pct),
         news_label=news_label,
-        direction=direction,
-        dates=dates,
+        direction=_direction_from_return(scenario_return_pct),
+        dates=_future_business_dates(last_date, horizon),
         model_values=point.tolist(),
         scenario_values=scenario.tolist(),
-        lower_80=lower_80.tolist() if lower_80 is not None else None,
-        upper_80=upper_80.tolist() if upper_80 is not None else None,
+        lower_80=lower_80,
+        upper_80=upper_80,
     )

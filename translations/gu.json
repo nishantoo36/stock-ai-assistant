@@ -113,6 +113,7 @@
     "rate_limit_action": "✅ કૃપા કરીને 2 મિનિટ રાહ જુઓ અને ફરીથી પ્રયાસ કરો.",
     "rate_limit_help": "જો સમસ્યા ચાલુ રહે, તો પ્રથમ અલગ સ્ટોક શોધવાનો પ્રયાસ કરો, પછી પાછા આવો.",
     "price_unavailable": "કિંમત ઉપલબ્ધ નથી",
+    "metadata_unavailable": "Yahoo Finance મેટાડેટા અસ્થાયી રીતે ઉપલબ્ધ નથી, તેથી એપ માત્ર કિંમત ઇતિહાસ સાથે ચાલુ રહેશે.",
     "no_price_data_title": "**{ticker}** માટે કોઈ કિંમત ડેટા ઉપલબ્ધ નથી.",
     "no_price_data_help": "આનો સામાન્ય અર્થ એ છે કે એક્સચેન્જ જાહેર બજાર ડેટા આપતું નથી (જેમ કે ડાર્ક પૂલ અથવા વૈકલ્પિક ટ્રેડિંગ સ્થળો), અથવા ટિકર ડીલિસ્ટ થઈ ગયું છે.\n\n**એ જ કંપનીની બીજી લિસ્ટિંગ પસંદ કરીને જુઓ** — ઉદાહરણ તરીકે પ્રાથમિક એક્સચેન્જ (STO, NYSE, FRA, વગેરે)."
   },
@@ -166,6 +167,29 @@
     "period_6m": "6 મહિના",
     "period_1y": "1 વર્ષ",
     "period_5y": "5 વર્ષ"
+  },
+  "forecast": {
+    "title": "🔮 TimesFM AI આગાહી",
+    "scenario_target": "સમાચાર + ટ્રેન્ડ પરિદૃશ્ય",
+    "model_target": "TimesFM આધારરેખા",
+    "direction": "આગાહી વલણ",
+    "directions": {
+      "bullish": "તેજી",
+      "bearish": "મંદી",
+      "neutral": "તટસ્થ"
+    },
+    "interval": "80% આગાહી અંતરાલ",
+    "scenario_line": "પરિદૃશ્ય આગાહી",
+    "install_note": "TimesFM 2.5 PyTorch નો ઉપયોગ કરે છે અને પ્રથમ ઉપયોગ વખતે Hugging Face પરથી મોડેલ વેઇટ્સ ડાઉનલોડ કરે છે. પ્રોડક્શનમાં સક્ષમ કરતા પહેલાં requirements.txt માંથી dependencies ઇન્સ્ટોલ કરો.",
+    "method_note": "આગાહી સમયગાળો: {horizon} ટ્રેડિંગ દિવસ. TimesFM ઐતિહાસિક ક્લોઝ કિંમતોનો ઉપયોગ કરે છે; સમાચાર વલણ ({news}) અને 20-દિવસનો ટ્રેન્ડ ({trend}) નાનું પારદર્શક પરિદૃશ્ય સમાયોજન લાગુ કરે છે.",
+    "messages": {
+      "ready": "દૈનિક ક્લોઝ ઇતિહાસ પરથી TimesFM 2.5 આગાહી બનાવવામાં આવી.",
+      "disabled": "TimesFM આગાહી TIMESFM_ENABLED દ્વારા બંધ છે.",
+      "insufficient_data": "TimesFM માટે ઓછામાં ઓછા {required} માન્ય દૈનિક ક્લોઝ જોઈએ; {found} મળ્યા.",
+      "missing_dependency": "TimesFM dependency ગાયબ છે: {dependency}. requirements.txt માંથી PyTorch અને TimesFM ઇન્સ્ટોલ કરો.",
+      "failed": "TimesFM આગાહી નિષ્ફળ ગઈ: {error}",
+      "invalid_output": "TimesFM એ અમાન્ય આગાહી આકાર અથવા NaN મૂલ્યો પરત કર્યા."
+    }
   },
   "risk": {
     "high": "ઉચ્ચ",
