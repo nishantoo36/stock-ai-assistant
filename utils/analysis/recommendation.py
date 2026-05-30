@@ -9,12 +9,12 @@ Note: Signal descriptions are keys that will be translated in the UI layer.
 import pandas as pd
 import numpy as np
 
-from utils.indicators import (
+from utils.analysis.indicators import (
     calculate_rsi, calculate_macd, calculate_bollinger,
     volume_trend,
 )
-from utils.sentiment import analyze_news_sentiment
-from utils.i18n import t
+from utils.analysis.sentiment import analyze_news_sentiment
+from utils.platform.i18n import t
 
 
 def _date_indexed(df: pd.DataFrame) -> pd.DataFrame:

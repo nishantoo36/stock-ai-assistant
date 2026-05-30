@@ -9,8 +9,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from utils.forex import convert_price, get_currency_symbol
-from utils.indicators import get_last_close
+from utils.market.forex import convert_price, get_currency_symbol
+from utils.analysis.indicators import get_last_close
 
 
 @dataclass(frozen=True)

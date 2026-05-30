@@ -1,0 +1,2 @@
+"""Search UI package."""
+

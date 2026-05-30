@@ -8,7 +8,7 @@ from html import escape
 
 import numpy as np
 import streamlit as st
-from utils.i18n import t
+from utils.platform.i18n import t
 
 SIGNAL_NAME_KEYS = {
     "RSI": "signals.names.rsi",

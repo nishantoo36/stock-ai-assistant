@@ -7,7 +7,7 @@ from datetime import timedelta
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
-from utils.i18n import t
+from utils.platform.i18n import t
 
 CHART_PERIODS = ["1D", "1W", "1M", "3M", "6M", "1Y", "3Y", "5Y", "All"]
 INTRADAY      = {"1D", "1W"}

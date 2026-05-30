@@ -7,9 +7,9 @@ from __future__ import annotations
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.forex import convert_price
-from utils.i18n import t
-from utils.timesfm_forecast import TimesFMForecast
+from utils.market.forex import convert_price
+from utils.platform.i18n import t
+from utils.analysis.timesfm_forecast import TimesFMForecast
 
 
 def _forecast_message(forecast: TimesFMForecast) -> str:

@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from utils.sentiment import analyze_news_sentiment
+from utils.analysis.sentiment import analyze_news_sentiment
 
 
 MIN_CONTEXT_POINTS = 32

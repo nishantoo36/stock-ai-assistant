@@ -17,7 +17,7 @@ import feedparser
 import streamlit as st
 from yahooquery import search
 
-from utils.cache import (
+from utils.data.cache import (
     cache_get, cache_get_stale, cache_set,
     fetch_in_background,
     TTL_INFO, TTL_HISTORY, TTL_NEWS, TTL_SEARCH,
