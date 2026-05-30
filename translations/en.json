@@ -211,10 +211,23 @@
     "scenario_target": "News + Trend Scenario",
     "model_target": "TimesFM Baseline",
     "direction": "Forecast Bias",
+    "directions": {
+      "bullish": "Bullish",
+      "bearish": "Bearish",
+      "neutral": "Neutral"
+    },
     "interval": "80% prediction interval",
     "scenario_line": "Scenario forecast",
     "install_note": "TimesFM 2.5 uses PyTorch and downloads model weights from Hugging Face on first use. Install dependencies from requirements.txt before enabling this in production.",
-    "method_note": "Forecast horizon: {horizon} trading days. TimesFM uses historical close prices; news sentiment ({news}) and 20-day trend ({trend}) apply a small transparent scenario adjustment."
+    "method_note": "Forecast horizon: {horizon} trading days. TimesFM uses historical close prices; news sentiment ({news}) and 20-day trend ({trend}) apply a small transparent scenario adjustment.",
+    "messages": {
+      "ready": "TimesFM 2.5 forecast generated from daily close history.",
+      "disabled": "TimesFM forecasting is disabled by TIMESFM_ENABLED.",
+      "insufficient_data": "Need at least {required} valid daily closes for TimesFM; found {found}.",
+      "missing_dependency": "Missing TimesFM dependency: {dependency}. Install PyTorch and TimesFM from requirements.txt.",
+      "failed": "TimesFM forecast failed: {error}",
+      "invalid_output": "TimesFM returned an invalid forecast shape or NaN values."
+    }
   },
   "risk": {
     "high": "High",
