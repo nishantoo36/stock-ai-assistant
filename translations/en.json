@@ -149,6 +149,7 @@
     "rate_limit_action": "✅ Please wait 2 minutes and try again.",
     "rate_limit_help": "If the issue persists, try searching a different stock first, then come back.",
     "price_unavailable": "Price unavailable",
+    "metadata_unavailable": "Yahoo Finance metadata is temporarily unavailable, so the app will continue with price history only.",
     "no_price_data_title": "No price data is available for **{ticker}**.",
     "no_price_data_help": "This usually means the exchange doesn't provide public market data (e.g. dark pools, alternative venues), or the ticker is delisted.\n\n**Try selecting a different listing** for the same company — for example the primary exchange (STO, NYSE, FRA, etc.)."
   },

@@ -92,9 +92,12 @@ def render_stock_view(currency_option: str) -> None:
     with st.spinner(t("stock_view.loading_analysis")):
         try:
             info = load_stock_info(ticker)
-        except Exception:
-            render_rate_limit_error()
-            st.stop()
+        except Exception as exc:
+            info = {"currency": "USD"}
+            st.warning(
+                f"{t('stock_view.metadata_unavailable')}\n\n"
+                f"`{type(exc).__name__}: {exc}`"
+            )
 
         orig_curr   = info.get("currency", "USD")
         df_chart    = load_chart_data(ticker, period)
