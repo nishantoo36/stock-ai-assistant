@@ -1,13 +1,13 @@
 import streamlit as st
 
-from ui.auth import (
+from ui.auth.session import (
     LOGOUT_FLAG,
     OAUTH_VERIFIER_COOKIE,
     PENDING_GOOGLE_AUTH,
     clear_oauth_verifier,
     store_auth_session,
 )
-from utils.common import attr, query_param
+from utils.platform.common import attr, query_param
 
 
 def handle_auth_callback() -> None:
@@ -31,7 +31,7 @@ def handle_auth_callback() -> None:
 
     if auth_code:
         try:
-            from utils.supabase_client import exchange_oauth_code
+            from utils.platform.supabase_client import exchange_oauth_code
 
             pending_auth = st.session_state.get(PENDING_GOOGLE_AUTH) or {}
             code_verifier = (
@@ -64,7 +64,7 @@ def handle_auth_callback() -> None:
             "refresh_token": refresh_token,
         }
         try:
-            from utils.supabase_client import get_user_supabase_client
+            from utils.platform.supabase_client import get_user_supabase_client
 
             client = get_user_supabase_client(access_token)
             user_info = client.auth.get_user(access_token)

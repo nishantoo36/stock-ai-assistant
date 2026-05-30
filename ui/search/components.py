@@ -4,9 +4,9 @@ Search bar, result cards, and no-results feedback.
 
 import streamlit as st
 
-from utils.common import query_param, select_stock
-from utils.data import do_search
-from utils.i18n import t
+from utils.platform.common import query_param, select_stock
+from utils.data.market_data import do_search
+from utils.platform.i18n import t
 
 EXCH_LABEL = {
     "NSI": "🇮🇳 NSE", "BSE": "🇮🇳 BSE", "NMS": "🇺🇸 NASDAQ",

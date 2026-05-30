@@ -7,9 +7,9 @@ from typing import Any
 
 import streamlit as st
 
-from utils.common import attr
-from utils.i18n import t
-from utils.supabase_client import (
+from utils.platform.common import attr
+from utils.platform.i18n import t
+from utils.platform.supabase_client import (
     get_public_supabase_client,
     sign_in_with_google,
 )
@@ -256,7 +256,7 @@ def render_auth_panel() -> None:
             identity = user.get("email") or user.get("phone") or ""
             st.caption(t("auth.signed_in_as", email=identity))
             if st.button("Manage alerts", use_container_width=True):
-                from ui.alerts import render_price_alerts_dialog
+                from ui.user.alerts import render_price_alerts_dialog
                 render_price_alerts_dialog()
             if st.button(t("auth.logout"), use_container_width=True):
                 logout()

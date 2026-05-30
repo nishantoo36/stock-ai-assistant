@@ -1,9 +1,9 @@
 import streamlit as st
 
-from ui.alerts import render_notifications_button
-from ui.auth import is_logged_in, render_auth_panel
-from ui.user_stocks import render_watchlist_button
-from utils.i18n import (
+from ui.user.alerts import render_notifications_button
+from ui.auth.session import is_logged_in, render_auth_panel
+from ui.user.stocks import render_watchlist_button
+from utils.platform.i18n import (
     get_available_languages,
     get_current_language,
     get_language_flag,

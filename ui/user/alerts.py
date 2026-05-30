@@ -8,70 +8,26 @@ from html import escape
 
 import streamlit as st
 
-# Avoid top-level import from ui.auth to prevent circular imports; import lazily inside functions
-from utils.i18n import t
-from utils.supabase_client import SupabaseConfigError, get_user_supabase_client
+# Avoid top-level import from ui.auth.session to prevent circular imports; import lazily inside functions
+from services.alerts import (
+    create_price_alert,
+    delete_price_alert,
+    load_notifications,
+    load_notifications_page,
+    load_price_alerts_page,
+    update_price_alert,
+)
+from utils.platform.i18n import t
+from utils.platform.supabase_client import SupabaseConfigError
 
 PAGE_SIZE = 30
 
 
-def _user_client():
-    from ui.auth import get_access_token
-    return get_user_supabase_client(get_access_token())
-
-
-def _user_id() -> str | None:
-    from ui.auth import get_current_user
-    return get_current_user().get("id")
-
-
-def create_price_alert(
-    ticker: str,
-    company_name: str | None,
-    target_price: float,
-    condition: str,
-    alert_type: str,
-) -> None:
-    user_id = _user_id()
-    if not user_id:
-        raise RuntimeError(t("auth.login_required"))
-
-    payload = {
-        "user_id": user_id,
-        "ticker": ticker,
-        "company_name": company_name,
-        "target_price": target_price,
-        "condition": condition,
-        "alert_type": alert_type,
-        "is_active": True,
-    }
-    client = _user_client()
-    existing = (
-        client
-        .table("price_alerts")
-        .select("id")
-        .eq("user_id", user_id)
-        .eq("ticker", ticker)
-        .order("created_at", desc=True)
-        .limit(20)
-        .execute()
-    )
-
-    if existing.data:
-        keep_id = existing.data[0]["id"]
-        client.table("price_alerts").update(payload).eq("id", keep_id).execute()
-        for duplicate in existing.data[1:]:
-            client.table("price_alerts").delete().eq("id", duplicate["id"]).execute()
-        return
-
-    client.table("price_alerts").insert(payload).execute()
-
-
 def render_alert_form(ticker: str, company_name: str | None, current_price: float | None = None) -> None:
-    from ui.auth import is_logged_in
+    from ui.auth.session import is_logged_in
     with st.popover(t("alerts.create_alert"), use_container_width=True):
         if not is_logged_in():
-            from ui.auth import render_login_required_dialog
+            from ui.auth.session import render_login_required_dialog
 
             if st.button(t("alerts.create_alert"), key=f"login_for_alert_{ticker}", use_container_width=True):
                 render_login_required_dialog()
@@ -115,25 +71,17 @@ def render_alert_form(ticker: str, company_name: str | None, current_price: floa
 
 
 def render_notifications_preview(limit: int = 5) -> None:
-    from ui.auth import is_logged_in
+    from ui.auth.session import is_logged_in
     if not is_logged_in():
         return
 
     with st.expander(t("alerts.notifications"), expanded=False):
         try:
-            response = (
-                _user_client()
-                .table("notification_events")
-                .select("ticker, message, is_read, created_at")
-                .order("created_at", desc=True)
-                .limit(limit)
-                .execute()
-            )
+            rows = load_notifications(limit)
         except Exception as exc:
             st.error(t("alerts.notification_error", error=str(exc)))
             return
 
-        rows = response.data or []
         if not rows:
             st.caption(t("alerts.no_notifications"))
             return
@@ -144,17 +92,7 @@ def render_notifications_preview(limit: int = 5) -> None:
 
 
 def _load_notifications_page(page: int, page_size: int = PAGE_SIZE) -> tuple[list[dict], bool]:
-    offset = max(page, 0) * page_size
-    response = (
-        _user_client()
-        .table("notification_events")
-        .select("ticker, message, is_read, created_at")
-        .order("created_at", desc=True)
-        .range(offset, offset + page_size)
-        .execute()
-    )
-    rows = response.data or []
-    return rows[:page_size], len(rows) > page_size
+    return load_notifications_page(page, page_size)
 
 
 def _render_notifications_page() -> None:
@@ -207,7 +145,7 @@ def render_notifications_dialog() -> None:
 
 
 def render_notifications_button() -> None:
-    from ui.auth import is_logged_in
+    from ui.auth.session import is_logged_in
     if not is_logged_in():
         return
 
@@ -216,17 +154,7 @@ def render_notifications_button() -> None:
 
 
 def _load_price_alerts(page: int, page_size: int = PAGE_SIZE) -> tuple[list[dict], bool]:
-    offset = max(page, 0) * page_size
-    response = (
-        _user_client()
-        .table("price_alerts")
-        .select("id, ticker, company_name, target_price, condition, alert_type, is_active, created_at")
-        .order("created_at", desc=True)
-        .range(offset, offset + page_size)
-        .execute()
-    )
-    rows = response.data or []
-    return rows[:page_size], len(rows) > page_size
+    return load_price_alerts_page(page, page_size)
 
 
 def _render_price_alerts_page() -> None:
@@ -273,7 +201,7 @@ def _render_price_alerts_page() -> None:
         with col_delete:
             if st.button(t("common.delete"), key=f"delete_alert_{page}_{index}", use_container_width=True):
                 try:
-                    _user_client().table("price_alerts").delete().eq("id", aid).execute()
+                    delete_price_alert(aid)
                     if st.session_state.get(edit_key) == aid:
                         st.session_state[edit_key] = None
                     st.success(t("alerts.alert_deleted"))
@@ -319,11 +247,7 @@ def _render_price_alerts_page() -> None:
                 type_map = {t("alerts.target"): "target", t("alerts.buy"): "buy", t("alerts.sell"): "sell"}
                 atype_val = type_map.get(new_type, "target")
                 try:
-                    _user_client().table("price_alerts").update({
-                        "target_price": float(new_price),
-                        "condition": cond_val,
-                        "alert_type": atype_val,
-                    }).eq("id", aid).execute()
+                    update_price_alert(aid, float(new_price), cond_val, atype_val)
                     st.session_state[edit_key] = None
                     st.success(t("alerts.alert_updated"))
                     st.rerun()
@@ -354,7 +278,7 @@ def render_price_alerts_dialog() -> None:
 
 
 def render_manage_alerts_button() -> None:
-    from ui.auth import is_logged_in
+    from ui.auth.session import is_logged_in
     if not is_logged_in():
         return
 

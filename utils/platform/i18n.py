@@ -9,11 +9,11 @@ import json
 import streamlit as st
 from typing import Dict, Any
 
-from utils.common import query_param
+from utils.platform.common import query_param
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
-TRANSLATIONS_DIR = os.path.join(os.path.dirname(__file__), "..", "translations")
+TRANSLATIONS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "translations")
 SUPPORTED_LANGUAGES = {
     "en": "English",
     "hi": "हिंदी",

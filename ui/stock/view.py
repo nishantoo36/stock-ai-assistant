@@ -6,22 +6,22 @@ Handles data loading, price/change calculation, and all rendering.
 import numpy as np
 import streamlit as st
 
-from utils.data           import load_stock_info, load_chart_data, load_analysis_data, load_news, load_live_price
-from utils.i18n           import t
-from utils.recommendation import generate_recommendation
-from utils.timesfm_forecast import build_timesfm_forecast
-from ui.chart             import CHART_PERIODS, render_period_selector, render_chart
-from ui.alerts            import render_alert_form
-from ui.analysis          import (
+from utils.data.market_data           import load_stock_info, load_chart_data, load_analysis_data, load_news, load_live_price
+from utils.platform.i18n           import t
+from utils.analysis.recommendation import generate_recommendation
+from utils.analysis.timesfm_forecast import build_timesfm_forecast
+from ui.stock.chart             import CHART_PERIODS, render_period_selector, render_chart
+from ui.user.alerts            import render_alert_form
+from ui.stock.analysis          import (
     render_stock_header, render_price,
     render_metric_cards, render_score_bar, render_ai_summary,
     render_signal_breakdown, render_news, render_education, render_cta,
 )
-from ui.forecast           import render_timesfm_forecast
-from ui.stock_view_state   import (
+from ui.stock.forecast           import render_timesfm_forecast
+from ui.stock.state   import (
     analysis_frame, build_display_price_state, has_price_data,
 )
-from ui.user_stocks       import render_stock_actions
+from ui.user.stocks       import render_stock_actions
 
 
 def render_stock_view(currency_option: str) -> None:

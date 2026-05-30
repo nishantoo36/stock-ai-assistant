@@ -8,115 +8,22 @@ from html import escape
 
 import streamlit as st
 
-from ui.auth import (
-    get_access_token,
-    get_current_user,
+from services.watchlist import (
+    add_to_watchlist,
+    is_in_watchlist,
+    is_saved_stock,
+    load_watchlist,
+    load_watchlist_page,
+    remove_from_watchlist,
+)
+from ui.auth.session import (
     is_logged_in,
     render_login_required_dialog,
 )
-from utils.i18n import t
-from utils.supabase_client import SupabaseConfigError, get_user_supabase_client
+from utils.platform.i18n import t
+from utils.platform.supabase_client import SupabaseConfigError
 
 PAGE_SIZE = 30
-
-
-def _user_client():
-    return get_user_supabase_client(get_access_token())
-
-
-def _user_id() -> str | None:
-    return get_current_user().get("id")
-
-
-def save_searched_stock(ticker: str, company_name: str | None) -> None:
-    user_id = _user_id()
-    if not user_id:
-        raise RuntimeError(t("auth.login_required"))
-
-    _user_client().table("saved_searches").insert({
-        "user_id": user_id,
-        "ticker": ticker,
-        "company_name": company_name,
-    }).execute()
-
-
-def remove_saved_stock(ticker: str) -> None:
-    user_id = _user_id()
-    if not user_id:
-        raise RuntimeError(t("auth.login_required"))
-
-    (
-        _user_client()
-        .table("saved_searches")
-        .delete()
-        .eq("user_id", user_id)
-        .eq("ticker", ticker)
-        .execute()
-    )
-
-
-def is_saved_stock(ticker: str) -> bool:
-    user_id = _user_id()
-    if not user_id:
-        return False
-
-    response = (
-        _user_client()
-        .table("saved_searches")
-        .select("ticker")
-        .eq("user_id", user_id)
-        .eq("ticker", ticker)
-        .limit(1)
-        .execute()
-    )
-    return bool(response.data)
-
-
-def add_to_watchlist(ticker: str, company_name: str | None) -> None:
-    user_id = _user_id()
-    if not user_id:
-        raise RuntimeError(t("auth.login_required"))
-
-    _user_client().table("watchlists").upsert(
-        {
-            "user_id": user_id,
-            "ticker": ticker,
-            "company_name": company_name,
-        },
-        on_conflict="user_id,ticker",
-    ).execute()
-
-
-def remove_from_watchlist(ticker: str) -> None:
-    user_id = _user_id()
-    if not user_id:
-        raise RuntimeError(t("auth.login_required"))
-
-    (
-        _user_client()
-        .table("watchlists")
-        .delete()
-        .eq("user_id", user_id)
-        .eq("ticker", ticker)
-        .execute()
-    )
-
-
-def is_in_watchlist(ticker: str) -> bool:
-    user_id = _user_id()
-    if not user_id:
-        return False
-
-    response = (
-        _user_client()
-        .table("watchlists")
-        .select("ticker")
-        .eq("user_id", user_id)
-        .eq("ticker", ticker)
-        .limit(1)
-        .execute()
-    )
-    return bool(response.data)
 
 
 def render_stock_actions(ticker: str, company_name: str | None) -> None:
@@ -126,7 +33,7 @@ def render_stock_actions(ticker: str, company_name: str | None) -> None:
         return
 
     try:
-        saved = is_saved_stock(ticker)
+        _saved = is_saved_stock(ticker)
         watched = is_in_watchlist(ticker)
     except (SupabaseConfigError, Exception) as exc:
         st.error(t("user_stocks.load_watchlist_error", error=str(exc)))
@@ -152,19 +59,11 @@ def render_watchlist_preview(limit: int = 8) -> None:
 
     with st.expander(t("user_stocks.my_watchlist"), expanded=False):
         try:
-            response = (
-                _user_client()
-                .table("watchlists")
-                .select("ticker, company_name, created_at")
-                .order("created_at", desc=True)
-                .limit(limit)
-                .execute()
-            )
+            rows = load_watchlist(limit)
         except Exception as exc:
             st.error(t("user_stocks.load_watchlist_error", error=str(exc)))
             return
 
-        rows = response.data or []
         if not rows:
             st.caption(t("user_stocks.empty_watchlist"))
             return
@@ -175,17 +74,7 @@ def render_watchlist_preview(limit: int = 8) -> None:
 
 
 def _load_watchlist_page(page: int, page_size: int = PAGE_SIZE) -> tuple[list[dict], bool]:
-    offset = max(page, 0) * page_size
-    response = (
-        _user_client()
-        .table("watchlists")
-        .select("ticker, company_name, created_at")
-        .order("created_at", desc=True)
-        .range(offset, offset + page_size)
-        .execute()
-    )
-    rows = response.data or []
-    return rows[:page_size], len(rows) > page_size
+    return load_watchlist_page(page, page_size)
 
 
 def _open_stock(row: dict) -> None:
