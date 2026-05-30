@@ -12,6 +12,7 @@ from utils.indicators     import get_last_close
 from utils.forex          import get_currency_symbol, convert_price
 from utils.i18n           import t
 from utils.recommendation import generate_recommendation
+from utils.timesfm_forecast import build_timesfm_forecast
 from ui.chart             import CHART_PERIODS, render_period_selector, render_chart
 from ui.alerts            import render_alert_form
 from ui.analysis          import (
@@ -19,6 +20,7 @@ from ui.analysis          import (
     render_metric_cards, render_score_bar, render_ai_summary,
     render_signal_breakdown, render_news, render_education, render_cta,
 )
+from ui.forecast           import render_timesfm_forecast
 from ui.user_stocks       import render_stock_actions
 
 
@@ -133,6 +135,7 @@ def render_stock_view(currency_option: str) -> None:
      news_label, news_detail,
      rsi, sma20, sma50, mom5, score_pct
     ) = generate_recommendation(df_analysis, info, news)
+    timesfm_forecast = build_timesfm_forecast(df_analysis, news)
 
     # Render
     st.markdown("<hr>", unsafe_allow_html=True)
@@ -161,6 +164,7 @@ def render_stock_view(currency_option: str) -> None:
         exchange_timezone=info.get("exchangeTimezoneName"),
     )
     render_period_selector()
+    render_timesfm_forecast(timesfm_forecast, orig_curr, disp_curr, sym)
     render_ai_summary(rec, summary)
     st.markdown("<br>", unsafe_allow_html=True)
 

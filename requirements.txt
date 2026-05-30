@@ -7,3 +7,4 @@ feedparser
 forex-python
 plotly
 supabase
+timesfm @ git+https://github.com/google-research/timesfm.git

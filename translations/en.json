@@ -205,6 +205,16 @@
     "period_1y": "1Y",
     "period_5y": "5Y"
   },
+  "forecast": {
+    "title": "🔮 TimesFM AI Forecast",
+    "scenario_target": "News + Trend Scenario",
+    "model_target": "TimesFM Baseline",
+    "direction": "Forecast Bias",
+    "interval": "80% prediction interval",
+    "scenario_line": "Scenario forecast",
+    "install_note": "TimesFM 2.5 uses PyTorch and downloads model weights from Hugging Face on first use. Install dependencies from requirements.txt before enabling this in production.",
+    "method_note": "Forecast horizon: {horizon} trading days. TimesFM uses historical close prices; news sentiment ({news}) and 20-day trend ({trend}) apply a small transparent scenario adjustment."
+  },
   "risk": {
     "high": "High",
     "low_medium": "Low-Medium",
