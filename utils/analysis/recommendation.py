@@ -44,6 +44,33 @@ def _signal_name(prefix: str, name: str) -> str:
     return f"{prefix} {name}" if prefix else name
 
 
+def _trend_bias(close: pd.Series) -> int:
+    """Return a simple trend context: positive, neutral, or negative."""
+    close = close.dropna()
+    if close.empty:
+        return 0
+
+    price = close.iloc[-1]
+    bias = 0
+
+    if len(close) >= 50:
+        sma50 = close.rolling(50).mean().iloc[-1]
+        if not pd.isna(sma50):
+            if price > sma50 * 1.03:
+                bias += 1
+            elif price < sma50 * 0.97:
+                bias -= 1
+
+    if len(close) >= 21:
+        momentum_20 = ((price - close.iloc[-21]) / close.iloc[-21]) * 100
+        if momentum_20 > 8:
+            bias += 1
+        elif momentum_20 < -8:
+            bias -= 1
+
+    return bias
+
+
 def _add_core_price_signals(
     signals: list[tuple],
     close: pd.Series,
@@ -58,11 +85,20 @@ def _add_core_price_signals(
 
     price = close.iloc[-1]
     has26 = len(close) >= 26
+    bearish_context = _trend_bias(close) < 0
 
     rsi_s = calculate_rsi(close)
     rsi = rsi_s.iloc[-1] if not pd.isna(rsi_s.iloc[-1]) else 50
-    if   rsi < 30: signals.append((_signal_name(prefix, "RSI"),  1, 2, ("signals.rsi_oversold", {"value": f"{rsi:.1f}"})))
-    elif rsi < 45: signals.append((_signal_name(prefix, "RSI"),  1, 1, ("signals.rsi_mild_oversold", {"value": f"{rsi:.1f}"})))
+    if rsi < 30:
+        if bearish_context:
+            signals.append((_signal_name(prefix, "RSI"), -1, 2, ("signals.rsi_oversold_bearish_trend", {"value": f"{rsi:.1f}"})))
+        else:
+            signals.append((_signal_name(prefix, "RSI"),  1, 2, ("signals.rsi_oversold", {"value": f"{rsi:.1f}"})))
+    elif rsi < 45:
+        if bearish_context:
+            signals.append((_signal_name(prefix, "RSI"), -1, 1, ("signals.rsi_mild_oversold_bearish_trend", {"value": f"{rsi:.1f}"})))
+        else:
+            signals.append((_signal_name(prefix, "RSI"),  1, 1, ("signals.rsi_mild_oversold", {"value": f"{rsi:.1f}"})))
     elif rsi > 70: signals.append((_signal_name(prefix, "RSI"), -1, 2, ("signals.rsi_overbought", {"value": f"{rsi:.1f}"})))
     elif rsi > 55: signals.append((_signal_name(prefix, "RSI"), -1, 1, ("signals.rsi_mild_overbought", {"value": f"{rsi:.1f}"})))
     else:          signals.append((_signal_name(prefix, "RSI"),  0, 1, ("signals.rsi_neutral", {"value": f"{rsi:.1f}"})))
@@ -116,8 +152,16 @@ def _add_core_price_signals(
         _, _, bp_s = calculate_bollinger(close)
         bp = bp_s.iloc[-1]
         if not pd.isna(bp):
-            if   bp < 0.15: signals.append((_signal_name(prefix, "Bollinger"),  1, 2, ("signals.bollinger_lower", {})))
-            elif bp < 0.35: signals.append((_signal_name(prefix, "Bollinger"),  1, 1, ("signals.bollinger_lower_half", {})))
+            if bp < 0.15:
+                if bearish_context:
+                    signals.append((_signal_name(prefix, "Bollinger"), -1, 2, ("signals.bollinger_lower_bearish_trend", {})))
+                else:
+                    signals.append((_signal_name(prefix, "Bollinger"),  1, 2, ("signals.bollinger_lower", {})))
+            elif bp < 0.35:
+                if bearish_context:
+                    signals.append((_signal_name(prefix, "Bollinger"), -1, 1, ("signals.bollinger_lower_half_bearish_trend", {})))
+                else:
+                    signals.append((_signal_name(prefix, "Bollinger"),  1, 1, ("signals.bollinger_lower_half", {})))
             elif bp > 0.85: signals.append((_signal_name(prefix, "Bollinger"), -1, 2, ("signals.bollinger_upper", {})))
             elif bp > 0.65: signals.append((_signal_name(prefix, "Bollinger"), -1, 1, ("signals.bollinger_upper_half", {})))
             else:           signals.append((_signal_name(prefix, "Bollinger"),  0, 1, ("signals.bollinger_midband", {})))
@@ -183,8 +227,17 @@ def generate_recommendation(
     w52l = stock_info.get("fiftyTwoWeekLow")
     if w52h and w52l and w52h > w52l:
         p52 = (price - w52l) / (w52h - w52l)
-        if   p52 < 0.20: signals.append(("52W Range",  1, 2, ("signals.range_52w_low", {})))
-        elif p52 < 0.40: signals.append(("52W Range",  1, 1, ("signals.range_52w_lower", {})))
+        bearish_context = _trend_bias(close) < 0
+        if p52 < 0.20:
+            if bearish_context:
+                signals.append(("52W Range", -1, 2, ("signals.range_52w_low_bearish_trend", {})))
+            else:
+                signals.append(("52W Range",  1, 2, ("signals.range_52w_low", {})))
+        elif p52 < 0.40:
+            if bearish_context:
+                signals.append(("52W Range", -1, 1, ("signals.range_52w_lower_bearish_trend", {})))
+            else:
+                signals.append(("52W Range",  1, 1, ("signals.range_52w_lower", {})))
         elif p52 > 0.85: signals.append(("52W Range", -1, 2, ("signals.range_52w_high", {})))
         elif p52 > 0.65: signals.append(("52W Range", -1, 1, ("signals.range_52w_upper", {})))
         else:            signals.append(("52W Range",  0, 1, ("signals.range_52w_mid", {})))
