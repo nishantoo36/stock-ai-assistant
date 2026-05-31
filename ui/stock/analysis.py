@@ -47,7 +47,7 @@ def _translated_signal_name(name: str) -> str:
 
 
 def _translated_signal_desc(desc) -> str:
-    if isinstance(desc, tuple) and len(desc) == 2:
+    if isinstance(desc, (tuple, list)) and len(desc) == 2:
         key, params = desc
         return t(key, **params) if params else t(key)
     return str(desc)

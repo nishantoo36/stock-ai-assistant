@@ -1,6 +1,10 @@
 __pycache__/
 *.pyc
 .env
+.env.*
+!.env.example
 .streamlit/
 venv/
+.venv/
+.idea/
 .DS_Store

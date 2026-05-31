@@ -1,225 +1,63 @@
-# 📈 AI Investment Assistant
+# AI Investment Assistant
 
-A beginner-friendly AI-powered stock investment assistant built with Python and Streamlit.
+A Streamlit stock research app with a public UI shell and private analysis engine integration.
 
-This tool helps users:
-
-- Search stocks and ETFs easily
-- Get BUY / HOLD / SELL recommendations
-- Understand investment suggestions in simple language
-- View stock price trends
-- Learn why the AI made a recommendation
-
-The application is designed for personal use on your laptop.
-
----
-
-# 🚀 Features
-
-✅ Search by company name
-
-✅ Supports:
-- US stocks
-- Indian stocks
-- ETFs
-
-✅ Beginner-friendly recommendations
-
-✅ BUY / HOLD / SELL suggestions
-
-✅ Confidence score
-
-✅ Risk analysis
-
-✅ Price trend chart
-
-✅ Detailed investment insights
-
----
-
-# 🖥️ System Requirements
-
-Recommended environment:
-
-| Requirement | Recommended |
-|---|---|
-| Operating System | macOS / Windows / Linux |
-| Python Version | Python 3.10+ |
-| RAM | 8 GB minimum |
-| Internet | Required for live stock data |
-
----
-
-# 🐍 Install Python
-
-Download Python:
-
-https://www.python.org/downloads/
-
-IMPORTANT:
-
-During installation enable:
-
-```text
-Add Python to PATH
-```
-
-Verify installation:
+This repository is safe to publish because proprietary recommendation, forecasting, and sentiment logic is not included here. The app calls a private backend when the following environment variables are configured:
 
 ```bash
-python3 --version
+STOCK_AI_ENGINE_URL=https://your-private-engine.example.com
+STOCK_AI_ENGINE_TOKEN=your_private_engine_token
 ```
 
----
+Without those variables, the app still loads market data and charts, but AI recommendations and forecasts fall back to neutral/unavailable responses.
 
-# 📦 Clone Repository
+## Features
 
-```bash
-git clone https://github.com/nishantoo36/stock-ai-assistant.git
-```
+- Search stocks, ETFs, and market listings.
+- View live stock metadata and price charts.
+- Show AI outlook, expected move, confidence, and risk when the private engine is configured.
+- Open advanced forecast details in a modal without exposing engine internals.
+- Manage watchlist and price alerts.
+- Keep public code focused on UI, data loading, authentication, and integration contracts.
 
-Go into project:
-
-```bash
-cd stock-ai-assistant
-```
-
----
-
-# 📁 Create Virtual Environment (Recommended)
-
-## macOS / Linux
+## Local Setup
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
+pip install -r requirements.txt
+streamlit run app.py
 ```
 
-## Windows
+For Windows:
 
 ```bash
 python -m venv venv
 venv\Scripts\activate
-```
-
----
-
-# 📥 Install Dependencies
-
-## Main Installation
-
-```bash
 pip install -r requirements.txt
-```
-
----
-
-# ⚠️ pandas-ta Installation Issue (Mac M-Series)
-
-If pandas-ta installation fails:
-
-```bash
-pip install git+https://github.com/twopirllc/pandas-ta.git
-```
-
----
-
-# ▶️ Run Application
-
-```bash
 streamlit run app.py
 ```
 
-Application opens automatically in browser.
+## Private Engine Contract
 
-If not:
+The public app expects two private endpoints:
 
-Open manually:
+- `POST /forecast`
+- `POST /recommendation`
 
-```text
-http://localhost:8501
-```
+Both endpoints receive JSON payloads containing market history, stock metadata, news items, and selected forecast horizon. They should return the UI-facing fields used by `utils/analysis/timesfm_forecast.py` and `utils/analysis/recommendation.py`.
 
----
+The implementation of those endpoints should live in a private repository or private deployment.
 
-# 🔍 Example Searches
+## Public Repo Safety
 
-You can search:
+If this project was previously committed with proprietary logic, do not simply make the existing repository public. Git history can still expose removed code.
 
-- Nvidia
-- Apple
-- Tesla
-- Tata Gold
-- Reliance
-- Infosys
-- TCS
-- Bitcoin
+Recommended safe options:
 
----
+- Publish this branch into a fresh public repository with no old history.
+- Or rewrite/remove sensitive history before changing repository visibility.
 
-# 📊 How Recommendations Work
+## Disclaimer
 
-The AI analyzes:
-
-- Historical stock prices
-- Market momentum
-- Trend direction
-- Technical indicators
-
-Then it provides:
-
-- BUY
-- HOLD
-- SELL
-
-recommendations with confidence and risk analysis.
-
----
-
-# 🧠 Beginner Friendly Design
-
-This tool avoids complicated trading jargon.
-
-Instead of showing confusing technical analysis,
-it explains recommendations in simple language.
-
----
-
-# ⚠️ Important Disclaimer
-
-This project is for educational and personal investment research purposes only.
-
-No AI system can predict stock markets perfectly.
-
-Always do your own research before investing.
-
----
-
-# 🛠️ Tech Stack
-
-| Technology | Purpose |
-|---|---|
-| Streamlit | Frontend UI |
-| yfinance | Stock market data |
-| pandas-ta | Technical indicators |
-| YahooQuery | Smart stock search |
-| Python | Backend logic |
-
----
-
-# 📌 Future Improvements
-
-Planned features:
-
-- AI news sentiment analysis
-- Portfolio tracking
-- Watchlist management
-- Telegram alerts
-- Long-term investment scoring
-- Market sentiment analysis
-
----
-
-# 👨‍💻 Author
-
-Created by Nishant Patel
+This project is for educational and personal research purposes only. It is not financial advice. Always do your own due diligence before investing.

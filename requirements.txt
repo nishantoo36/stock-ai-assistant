@@ -7,5 +7,4 @@ feedparser
 forex-python
 plotly
 supabase
-torch>=2.0.0
-timesfm @ git+https://github.com/google-research/timesfm.git
+python-dotenv
