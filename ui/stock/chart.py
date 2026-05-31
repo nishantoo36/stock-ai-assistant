@@ -1,8 +1,8 @@
-"""
-Price chart with SMA20/SMA50 overlay and custom HTML legend.
-"""
+"""Google Finance-style price chart card."""
 
 from datetime import timedelta
+from html import escape
+import math
 
 import pandas as pd
 import streamlit as st
@@ -23,9 +23,70 @@ X_WINDOWS = {
 }
 
 
+def _is_light_theme() -> bool:
+    return st.get_option("theme.base") == "light"
+
+
+def _chart_colors() -> dict[str, str]:
+    if _is_light_theme():
+        return {
+            "paper": "#ffffff",
+            "plot": "#ffffff",
+            "grid": "rgba(218,220,224,0.55)",
+            "axis": "#80868b",
+            "tick": "#202124",
+            "muted": "#5f6368",
+            "hover_bg": "#ffffff",
+            "hover_border": "#dadce0",
+            "marker_border": "#ffffff",
+            "previous": "#777777",
+        }
+
+    return {
+        "paper": "rgba(0,0,0,0)",
+        "plot": "rgba(0,0,0,0)",
+        "grid": "rgba(148,163,184,0.18)",
+        "axis": "rgba(148,163,184,0.42)",
+        "tick": "#e2e8f0",
+        "muted": "#94a3b8",
+        "hover_bg": "#111827",
+        "hover_border": "#334155",
+        "marker_border": "#0a0e1a",
+        "previous": "#94a3b8",
+    }
+
+
 def render_period_selector() -> str:
     if st.session_state.chart_period not in CHART_PERIODS:
         st.session_state.chart_period = "1D"
+
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stSegmentedControl"] {
+            margin: 0;
+        }
+        div[data-testid="stSegmentedControl"] label {
+            color: var(--muted) !important;
+            font-weight: 600 !important;
+        }
+        div[data-testid="stSegmentedControl"] div[role="radiogroup"] {
+            background: transparent !important;
+            border-color: var(--border) !important;
+        }
+        div[data-testid="stSegmentedControl"] [aria-checked="true"] {
+            color: var(--red) !important;
+            border-color: var(--red) !important;
+            background: rgba(239, 68, 68, 0.12) !important;
+            border-radius: 0 !important;
+        }
+        div[data-testid="stSegmentedControl"] [aria-checked="true"] * {
+            color: var(--red) !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
     current = st.segmented_control(
         t("analysis.time_range"),
@@ -40,6 +101,86 @@ def render_period_selector() -> str:
         st.rerun()
 
     return st.session_state.chart_period
+
+
+def _is_valid_number(value) -> bool:
+    try:
+        return value is not None and not math.isnan(float(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def _format_number(value, decimals: int = 2) -> str:
+    if not _is_valid_number(value):
+        return t("common.unavailable")
+    return f"{float(value):,.{decimals}f}"
+
+
+def _format_compact_number(value) -> str:
+    if not _is_valid_number(value):
+        return t("common.unavailable")
+
+    value = float(value)
+    abs_value = abs(value)
+    for suffix, divisor in (("T", 1_000_000_000_000), ("B", 1_000_000_000), ("M", 1_000_000)):
+        if abs_value >= divisor:
+            return f"{value / divisor:,.2f}{suffix}"
+    return f"{value:,.0f}"
+
+
+def _format_pct(value) -> str:
+    if not _is_valid_number(value):
+        return t("common.unavailable")
+
+    pct = float(value)
+    if abs(pct) <= 1:
+        pct *= 100
+    return f"{pct:.2f}%"
+
+
+def _daily_stat(df_plot: pd.DataFrame, column: str):
+    if column not in df_plot.columns:
+        return None
+    values = df_plot[column].dropna()
+    return None if values.empty else values.iloc[-1]
+
+
+def _info_value(info: dict | None, *keys: str):
+    if not info:
+        return None
+    for key in keys:
+        value = info.get(key)
+        if _is_valid_number(value):
+            return value
+    return None
+
+
+def _render_google_stats(df_plot: pd.DataFrame, info: dict | None, previous_close: float | None) -> None:
+    open_value = _daily_stat(df_plot, "Open") or _info_value(info, "regularMarketOpen", "open")
+    high_value = _daily_stat(df_plot, "High") or _info_value(info, "dayHigh", "regularMarketDayHigh")
+    low_value = _daily_stat(df_plot, "Low") or _info_value(info, "dayLow", "regularMarketDayLow")
+    dividend_yield = _info_value(info, "dividendYield", "trailingAnnualDividendYield")
+
+    stats = [
+        ("Open", _format_number(open_value)),
+        ("High", _format_number(high_value)),
+        ("Low", _format_number(low_value)),
+        ("Mkt cap", _format_compact_number(_info_value(info, "marketCap"))),
+        ("P/E ratio", _format_number(_info_value(info, "trailingPE", "forwardPE"))),
+        ("Previous close", _format_number(previous_close)),
+        ("Dividend", _format_pct(dividend_yield)),
+        ("52-wk high", _format_number(_info_value(info, "fiftyTwoWeekHigh"))),
+        ("52-wk low", _format_number(_info_value(info, "fiftyTwoWeekLow"))),
+    ]
+
+    cells = "".join(
+        "<div class='google-stat'>"
+        f"<span>{escape(label)}</span>"
+        f"<strong>{escape(value)}</strong>"
+        "</div>"
+        for label, value in stats
+    )
+    st.markdown(f"<div class='google-chart-stats'>{cells}</div>", unsafe_allow_html=True)
 
 
 def _x_values(df_plot: pd.DataFrame, exchange_timezone: str | None = None) -> pd.Series:
@@ -95,7 +236,9 @@ def _x_axis_range(x_values: pd.Series, period: str) -> list | None:
 def render_chart(df_chart: pd.DataFrame, df_analysis: pd.DataFrame,
                  period: str, disp_curr: str,
                  previous_close: float | None = None,
-                 exchange_timezone: str | None = None) -> None:
+                 exchange_timezone: str | None = None,
+                 stock_info: dict | None = None,
+                 period_change: float | None = None) -> None:
     intraday = period in INTRADAY
     df_plot  = (
         df_chart.dropna(subset=["Close"]) if not df_chart.empty
@@ -117,59 +260,34 @@ def render_chart(df_chart: pd.DataFrame, df_analysis: pd.DataFrame,
     first_close = float(close_values.iloc[0])
     last_close = float(close_values.iloc[-1])
     reference_close = previous_close if previous_close else first_close
-    line_color = "#22c55e" if last_close >= reference_close else "#ef4444"
-    if "show_sma_hover" not in st.session_state:
-        st.session_state.show_sma_hover = False
-    show_sma_hover = bool(st.session_state.show_sma_hover)
+    is_positive = period_change >= 0 if period_change is not None else last_close >= reference_close
+    line_color = "#22c55e" if is_positive else "#ef4444"
+    fill_color = "rgba(34, 197, 94, 0.12)" if is_positive else "rgba(234, 67, 53, 0.12)"
+    hover_date = "%-I:%M %p" if intraday else "%b %d, %Y"
+    colors = _chart_colors()
 
     fig = go.Figure()
-
-    if intraday:
-        fig.add_trace(go.Scatter(
-            x=x_values, y=df_plot["Close"],
-            mode="lines+markers", name=t("chart.price"),
-            line=dict(width=2.6, color=line_color),
-            marker=dict(size=9, color=line_color, opacity=0),
-            hovertemplate=f"{disp_curr} %{{y:,.2f}} | %{{x|%-I:%M %p}}<extra></extra>",
-        ))
-    else:
-        s20 = df_plot["Close"].rolling(20).mean()
-        s50 = df_plot["Close"].rolling(50).mean()
-        s20_hover = (
-            {"hovertemplate": f"{disp_curr} %{{y:,.2f}} | %{{x|%b %d, %Y}}<extra>SMA 20</extra>"}
-            if show_sma_hover else {"hoverinfo": "skip"}
-        )
-        s50_hover = (
-            {"hovertemplate": f"{disp_curr} %{{y:,.2f}} | %{{x|%b %d, %Y}}<extra>SMA 50</extra>"}
-            if show_sma_hover else {"hoverinfo": "skip"}
-        )
-        fig.add_trace(go.Scatter(
-            x=x_values, y=df_plot["Close"],
-            mode="lines+markers", name=t("chart.price"),
-            line=dict(width=2.6, color=line_color),
-            marker=dict(size=9, color=line_color, opacity=0),
-            hovertemplate=f"{disp_curr} %{{y:,.2f}} | %{{x|%b %d, %Y}}<extra></extra>",
-        ))
-        fig.add_trace(go.Scatter(
-            x=x_values, y=s20,
-            mode="lines", name="SMA20",
-            line=dict(dash="dash", width=1.2, color="#f59e0b"),
-            **s20_hover,
-        ))
-        fig.add_trace(go.Scatter(
-            x=x_values, y=s50,
-            mode="lines", name="SMA50",
-            line=dict(dash="dot", width=1.2, color="#a78bfa"),
-            **s50_hover,
-        ))
+    fig.add_trace(go.Scatter(
+        x=x_values,
+        y=df_plot["Close"],
+        mode="lines",
+        name=t("chart.price"),
+        line=dict(width=3, color=line_color, shape="spline", smoothing=0.45),
+        fill="tozeroy",
+        fillcolor=fill_color,
+        hovertemplate=f"<b>%{{y:,.2f}} {disp_curr}</b><br>%{{x|{hover_date}}}<extra></extra>",
+    ))
 
     if previous_close:
         fig.add_hline(
             y=previous_close,
             line_dash="dot",
-            line_width=1.2,
-            line_color="#64748b",
-            opacity=0.85,
+            line_width=1.6,
+            line_color=colors["previous"],
+            opacity=0.75,
+            annotation_text=f"Previous close<br>{previous_close:,.2f}",
+            annotation_position="right",
+            annotation_font=dict(size=12, color=colors["tick"]),
         )
 
     fig.add_trace(go.Scatter(
@@ -177,7 +295,7 @@ def render_chart(df_chart: pd.DataFrame, df_analysis: pd.DataFrame,
         y=[last_close],
         mode="markers",
         name=t("chart.price"),
-        marker=dict(size=8, color=line_color, line=dict(width=1.5, color="#0a0e1a")),
+        marker=dict(size=9, color=line_color, line=dict(width=2, color=colors["marker_border"])),
         hoverinfo="skip",
     ))
 
@@ -188,93 +306,151 @@ def render_chart(df_chart: pd.DataFrame, df_analysis: pd.DataFrame,
     mx  = max(y_points)
     pad = max((mx - mn) * 0.12, 1)
 
+    if intraday:
+        tickformat = "%H:%M"
+    elif period in {"3Y", "5Y", "All"}:
+        tickformat = "%b %d<br>%Y"
+    else:
+        tickformat = "%b %d"
+
     fig.update_layout(
-        height=430,
+        height=390,
         hovermode="x",
         hoverdistance=80,
         spikedistance=80,
         dragmode=False,
-        margin=dict(l=4, r=4, t=14, b=10),
+        margin=dict(l=8, r=8, t=10, b=2),
         xaxis_title=None,
         yaxis_title=None,
         yaxis=dict(
             range=[mn - pad, mx + pad],
             fixedrange=True,
-            showgrid=False,
-            showticklabels=False,
+            showgrid=True,
+            gridcolor=colors["grid"],
+            showticklabels=True,
             ticks="",
             showline=False,
             zeroline=False,
             showspikes=True,
-            spikecolor="rgba(148,163,184,0.55)",
+            spikecolor="#9aa0a6",
+            spikedash="dot",
+            spikethickness=1,
+            spikemode="across",
+            tickfont=dict(color=colors["tick"], size=12),
+            separatethousands=True,
+        ),
+        showlegend=False,
+        paper_bgcolor=colors["paper"],
+        plot_bgcolor=colors["plot"],
+        font=dict(family="Google Sans, Arial, sans-serif", color=colors["muted"], size=12),
+        xaxis=dict(
+            showgrid=False,
+            showline=True,
+            linecolor=colors["axis"],
+            zeroline=False,
+            fixedrange=True,
+            range=x_range,
+            showticklabels=True,
+            ticks="outside",
+            tickformat=tickformat,
+            tickfont=dict(color=colors["tick"], size=12),
+            showspikes=True,
+            spikecolor="#9aa0a6",
             spikedash="dot",
             spikethickness=1,
             spikemode="across",
         ),
-        showlegend=False,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="DM Sans, sans-serif", color="#94a3b8", size=11),
-        xaxis=dict(
-            showgrid=False,
-            showline=True,
-            linecolor="rgba(148,163,184,0.42)",
-            zeroline=False,
-            fixedrange=True,
-            range=x_range,
-            showticklabels=False,
-            ticks="",
-            showspikes=True,
-            spikecolor="rgba(148,163,184,0.55)",
-            spikedash="solid",
-            spikethickness=1,
-            spikemode="across",
-        ),
         hoverlabel=dict(
-            bgcolor="#0a0e1a",
-            bordercolor="rgba(148,163,184,0.20)",
-            font=dict(family="DM Sans, sans-serif", size=13, color="#e2e8f0"),
+            bgcolor=colors["hover_bg"],
+            bordercolor=colors["hover_border"],
+            font=dict(family="Google Sans, Arial, sans-serif", size=13, color=colors["tick"]),
         ),
     )
 
-    # Custom HTML legend above chart — no overlap with Plotly zoom controls
-    if intraday:
-        legend_html = f"""
-        <div class="chart-legend">
-            <span class="chart-legend-item">
-                <span class="chart-line-swatch" style="background:{line_color}"></span>
-                {t('chart.price_history')}
-            </span>
-            <span class="chart-legend-meta">{t('chart.price_axis', currency=disp_curr)}</span>
-        </div>"""
-    else:
-        legend_html = f"""
-        <div class="chart-legend">
-            <span class="chart-legend-item">
-                <span class="chart-line-swatch" style="background:{line_color}"></span>
-                {t('chart.price_history')}
-            </span>
-            <span class="chart-legend-item">
-                <span class="chart-line-swatch chart-line-swatch-dash"></span>
-                {t('chart.sma_20')}
-            </span>
-            <span class="chart-legend-item">
-                <span class="chart-line-swatch chart-line-swatch-dot"></span>
-                {t('chart.sma_50')}
-            </span>
-            <span class="chart-legend-meta">{t('chart.price_axis', currency=disp_curr)}</span>
-        </div>"""
-
-    st.markdown(legend_html, unsafe_allow_html=True)
-    if not intraday:
-        st.toggle(t("chart.sma_hover"), key="show_sma_hover")
-    st.plotly_chart(
-        fig,
-        width="stretch",
-        config={
-            "scrollZoom": False,
-            "doubleClick": False,
-            "displayModeBar": False,
-            "responsive": True,
-        },
+    st.markdown(
+        f"""
+        <style>
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.google-chart-title) {{
+            background: var(--surface) !important;
+            border-color: var(--border) !important;
+            box-shadow: 0 1px 2px rgba(60, 64, 67, 0.12);
+        }}
+        .google-chart-header {{
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 180px;
+        }}
+        .google-chart-title {{
+            color: var(--text) !important;
+            font: 700 1.12rem Google Sans, Arial, sans-serif;
+            letter-spacing: -0.01em;
+            margin: 0;
+        }}
+        .google-chart-subtitle {{
+            color: var(--muted) !important;
+            font: 600 0.86rem Google Sans, Arial, sans-serif;
+            margin: 0;
+        }}
+        .google-chart-stats {{
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px 34px;
+            padding: 16px 6px 18px;
+            margin-bottom: 6px;
+            background: var(--surface);
+        }}
+        .google-stat {{
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            color: var(--muted) !important;
+            font: 600 0.95rem Google Sans, Arial, sans-serif;
+            line-height: 1.35;
+            min-width: 0;
+        }}
+        .google-stat span {{
+            color: var(--muted) !important;
+        }}
+        .google-stat strong {{
+            color: var(--text) !important;
+            font-weight: 700;
+            text-align: right;
+            white-space: nowrap;
+        }}
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.google-chart-title)
+        div[data-testid="stSegmentedControl"] {{
+            margin-top: 4px;
+        }}
+        @media (max-width: 760px) {{
+            .google-chart-stats {{ grid-template-columns: 1fr; gap: 9px; }}
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
     )
+    with st.container(border=True):
+        title_col, selector_col = st.columns([0.9, 2.2], vertical_alignment="center")
+        with title_col:
+            st.markdown(
+                f"""
+                <div class="google-chart-header">
+                    <div class="google-chart-title">{escape(t('chart.price_history'))}</div>
+                    <div class="google-chart-subtitle">{escape(t('chart.price_axis', currency=disp_curr))}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with selector_col:
+            render_period_selector()
+        st.plotly_chart(
+            fig,
+            width="stretch",
+            config={
+                "scrollZoom": False,
+                "doubleClick": False,
+                "displayModeBar": False,
+                "responsive": True,
+            },
+        )
+        _render_google_stats(df_plot, stock_info, previous_close)
