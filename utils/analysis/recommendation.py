@@ -9,6 +9,7 @@ Note: Signal descriptions are keys that will be translated in the UI layer.
 import pandas as pd
 import numpy as np
 
+from utils.analysis.timesfm_forecast import TimesFMForecast
 from utils.analysis.indicators import (
     calculate_rsi, calculate_macd, calculate_bollinger,
     volume_trend,
@@ -42,6 +43,41 @@ def _resampled_close(df: pd.DataFrame, rule: str) -> pd.Series:
 
 def _signal_name(prefix: str, name: str) -> str:
     return f"{prefix} {name}" if prefix else name
+
+
+def _forecast_signal_value(return_pct: float | None) -> int:
+    if return_pct is None:
+        return 0
+    if return_pct >= 1:
+        return 1
+    if return_pct <= -1:
+        return -1
+    return 0
+
+
+def _add_forecast_signal(signals: list[tuple], forecast: TimesFMForecast | None) -> None:
+    if not forecast or not forecast.available:
+        signals.append(("TimesFM Forecast", 0, 2, ("signals.timesfm_unavailable", {})))
+        return
+
+    value = _forecast_signal_value(forecast.scenario_return_pct)
+    abs_return = abs(float(forecast.scenario_return_pct or 0))
+    weight = 4 if abs_return >= 5 else 3
+    params = {
+        "horizon": forecast.horizon,
+        "scenario": f"{float(forecast.scenario_return_pct or 0):+.2f}",
+        "baseline": f"{float(forecast.model_return_pct or 0):+.2f}",
+        "trend": f"{float(forecast.trend_return_pct or 0):+.2f}",
+        "news": forecast.news_label,
+    }
+
+    if value > 0:
+        key = "signals.timesfm_bullish"
+    elif value < 0:
+        key = "signals.timesfm_bearish"
+    else:
+        key = "signals.timesfm_neutral"
+    signals.append(("TimesFM Forecast", value, weight, (key, params)))
 
 
 def _trend_bias(close: pd.Series) -> int:
@@ -173,6 +209,7 @@ def generate_recommendation(
     df: pd.DataFrame,
     stock_info: dict,
     news_list: list,
+    forecast: TimesFMForecast | None = None,
 ) -> tuple:
     """
     Returns:
@@ -253,6 +290,7 @@ def generate_recommendation(
     }
     nv, nw, _ = _news_map[ns]
     signals.append(("News", nv, nw, _news_map[ns][2]))
+    _add_forecast_signal(signals, forecast)
 
     # ── Aggregate ────────────────────────────────────
     weighted_sum = sum(v * w for _, v, w, _ in signals)
@@ -260,7 +298,17 @@ def generate_recommendation(
     score_pct    = (weighted_sum / max_sum) * 100
 
     rec  = "BUY" if score_pct >= 22 else "SELL" if score_pct <= -22 else "HOLD"
+    forecast_value = _forecast_signal_value(
+        forecast.scenario_return_pct if forecast and forecast.available else None
+    )
+    forecast_conflict = False
+    if (rec == "BUY" and forecast_value < 0) or (rec == "SELL" and forecast_value > 0):
+        rec = "HOLD"
+        forecast_conflict = True
+    display_score_pct = 0 if forecast_conflict else score_pct
     conf = min(93, max(51, int(50 + abs(score_pct) * 0.45)))
+    if forecast_conflict:
+        conf = min(conf, 68)
 
     buys     = [s for s in signals if s[1] ==  1]
     sells    = [s for s in signals if s[1] == -1]
@@ -277,7 +325,7 @@ def generate_recommendation(
     top_bear = [d for _, v, w, d in signals if v == -1 and w >= 2]
     weekly_count = sum(1 for name, *_ in signals if name.startswith("Weekly "))
     monthly_count = sum(1 for name, *_ in signals if name.startswith("Monthly "))
-    daily_count = max(nc - weekly_count - monthly_count - 2, 0)
+    daily_count = max(nc - weekly_count - monthly_count - 3, 0)
 
     def _render_desc(d):
         # d can be a plain string or a tuple (key, params)
@@ -304,5 +352,14 @@ def generate_recommendation(
         weekly=weekly_count,
         monthly=monthly_count,
     )
+    if forecast and forecast.available:
+        summary += "\n\n**Forecast input:** " + t(
+            "summary.forecast_note",
+            horizon=forecast.horizon,
+            direction=t(f"forecast.directions.{forecast.direction.lower()}"),
+            scenario=f"{float(forecast.scenario_return_pct or 0):+.2f}",
+        )
+        if forecast_conflict:
+            summary += " " + t("summary.forecast_conflict_note")
 
-    return rec, conf, risk, summary, signals, news_label, news_detail, rsi, sma20, sma50, mom5, score_pct
+    return rec, conf, risk, summary, signals, news_label, news_detail, rsi, sma20, sma50, mom5, display_score_pct

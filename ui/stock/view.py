@@ -14,10 +14,14 @@ from ui.stock.chart             import CHART_PERIODS, render_chart
 from ui.user.alerts            import render_alert_form
 from ui.stock.analysis          import (
     render_stock_header, render_price,
-    render_metric_cards, render_score_bar, render_ai_summary,
+    render_score_bar, render_ai_summary,
     render_signal_breakdown, render_news, render_education, render_cta,
 )
-from ui.stock.forecast           import render_timesfm_forecast
+from ui.stock.forecast           import (
+    render_ai_outlook_summary,
+    render_forecast_horizon_selector,
+    render_timesfm_forecast,
+)
 from ui.stock.state   import (
     analysis_frame, build_display_price_state, has_price_data,
 )
@@ -70,13 +74,6 @@ def render_stock_view(currency_option: str) -> None:
         period,
     )
 
-    # Analysis
-    (rec, conf, risk, summary, signals,
-     news_label, news_detail,
-     rsi, sma20, sma50, mom5, score_pct
-    ) = generate_recommendation(df_analysis, info, news)
-    timesfm_forecast = build_timesfm_forecast(df_analysis, news)
-
     # Render
     st.markdown("<hr>", unsafe_allow_html=True)
     title_col, actions_col = st.columns([1.35, 1.25], vertical_alignment="center")
@@ -96,11 +93,33 @@ def render_stock_view(currency_option: str) -> None:
         price_state.currency_symbol,
         period,
     )
-    render_metric_cards(rec, conf, risk)
+    forecast_horizon = render_forecast_horizon_selector()
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    with st.spinner(t("forecast.analyzing")):
+        timesfm_forecast = build_timesfm_forecast(df_analysis, news, horizon=forecast_horizon)
+        (rec, conf, risk, summary, signals,
+         news_label, news_detail,
+         rsi, sma20, sma50, mom5, score_pct
+        ) = generate_recommendation(df_analysis, info, news, forecast=timesfm_forecast)
+
+    render_ai_outlook_summary(
+        rec,
+        conf,
+        risk,
+        timesfm_forecast,
+        orig_curr,
+        price_state.display_currency,
+        price_state.currency_symbol,
+    )
     render_score_bar(score_pct)
-    st.markdown("<hr>", unsafe_allow_html=True)
+    render_timesfm_forecast(
+        timesfm_forecast,
+        orig_curr,
+        price_state.display_currency,
+        price_state.currency_symbol,
+    )
+    render_ai_summary(rec, summary)
+    st.markdown("<br>", unsafe_allow_html=True)
 
     render_chart(
         df_chart,
@@ -112,14 +131,6 @@ def render_stock_view(currency_option: str) -> None:
         stock_info=info,
         period_change=price_state.day_change,
     )
-    render_timesfm_forecast(
-        timesfm_forecast,
-        orig_curr,
-        price_state.display_currency,
-        price_state.currency_symbol,
-    )
-    render_ai_summary(rec, summary)
-    st.markdown("<br>", unsafe_allow_html=True)
 
     render_signal_breakdown(signals, rsi, mom5, price_state.currency_symbol, info)
     render_news(news_label, news_detail)
