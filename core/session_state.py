@@ -12,6 +12,7 @@ SESSION_DEFAULTS = {
     "company_name": None,
     "search_results": [],
     "chart_period": "1D",
+    "forecast_horizon": 12,
     "search_no_results": None,
     "show_login": False,
     "search_query": "",

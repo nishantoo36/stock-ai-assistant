@@ -22,6 +22,7 @@ SIGNAL_NAME_KEYS = {
     "Volume": "signals.names.volume",
     "52W Range": "signals.names.range_52w",
     "News": "signals.names.news",
+    "TimesFM Forecast": "signals.names.timesfm_forecast",
 }
 
 RISK_TRANSLATION_KEYS = {
@@ -179,15 +180,10 @@ def render_score_bar(score_pct: float) -> None:
 # ── AI summary ───────────────────────────────────────────────────────────────
 
 def render_ai_summary(rec: str, summary: str) -> None:
-    st.markdown(
-        f"<p style='color:#94a3b8;font-size:0.78rem;font-weight:600;"
-        f"letter-spacing:.06em;text-transform:uppercase;margin:8px 0 8px 0'>"
-        f"{t('analysis.ai_summary')}</p>",
-        unsafe_allow_html=True,
-    )
-    if rec == "BUY":    st.success(summary)
-    elif rec == "SELL": st.error(summary)
-    else:               st.warning(summary)
+    with st.expander(t("analysis.ai_summary"), expanded=False):
+        if rec == "BUY":    st.success(summary)
+        elif rec == "SELL": st.error(summary)
+        else:               st.warning(summary)
 
 
 # ── Signal breakdown expander ────────────────────────────────────────────────

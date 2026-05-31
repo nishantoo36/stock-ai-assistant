@@ -20,6 +20,14 @@ from utils.analysis.sentiment import analyze_news_sentiment
 
 MIN_CONTEXT_POINTS = 32
 DEFAULT_HORIZON = 12
+FORECAST_HORIZONS = {
+    "1D": 1,
+    "3D": 3,
+    "1W": 5,
+    "12D": 12,
+    "1M": 21,
+    "1Y": 252,
+}
 MAX_CONTEXT = 1024
 MODEL_ID = "google/timesfm-2.5-200m-pytorch"
 
@@ -52,6 +60,16 @@ def _unavailable(message_key: str, fallback: str, **params) -> TimesFMForecast:
 
 def _is_forecast_enabled() -> bool:
     return os.getenv("TIMESFM_ENABLED", "true").strip().lower() not in {"0", "false", "no"}
+
+
+def normalize_forecast_horizon(horizon: int | str | None) -> int:
+    try:
+        parsed = int(horizon) if horizon is not None else DEFAULT_HORIZON
+    except (TypeError, ValueError):
+        parsed = DEFAULT_HORIZON
+
+    valid = set(FORECAST_HORIZONS.values())
+    return parsed if parsed in valid else DEFAULT_HORIZON
 
 
 def _history_close(df: pd.DataFrame) -> tuple[pd.Series, pd.Timestamp | None]:
@@ -175,6 +193,8 @@ def build_timesfm_forecast(
     news_list: list[dict],
     horizon: int = DEFAULT_HORIZON,
 ) -> TimesFMForecast:
+    horizon = normalize_forecast_horizon(horizon)
+
     if not _is_forecast_enabled():
         return _unavailable(
             "forecast.messages.disabled",

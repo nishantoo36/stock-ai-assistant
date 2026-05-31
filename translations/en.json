@@ -208,6 +208,26 @@
   },
   "forecast": {
     "title": "🔮 TimesFM AI Forecast",
+    "title_with_horizon": "🔮 TimesFM AI Forecast ({horizon})",
+    "horizon_title": "Decision timeframe",
+    "horizon_help": "Choose how far ahead the AI should judge the stock.",
+    "horizon_selector": "Decision timeframe",
+    "analyzing": "Building forecast-aware recommendation...",
+    "outlook_title": "AI Outlook",
+    "expected_price": "Expected {horizon}",
+    "expected_change": "Expected change",
+    "outlook_reason_buy": "The forecast is {direction} with an expected move of {change}, so the model sees a buying opportunity.",
+    "outlook_reason_sell": "The forecast is {direction} with an expected move of {change}, so the model sees elevated downside risk.",
+    "outlook_reason_hold": "The forecast is {direction} with an expected move of {change}. The move is not strong enough for a clear buy or sell.",
+    "view_details": "View forecast details",
+    "horizons": {
+      "1d": "1 day",
+      "3d": "3 days",
+      "1w": "1 week",
+      "12d": "12 days",
+      "1m": "1 month",
+      "1y": "1 year"
+    },
     "scenario_target": "News + Trend Scenario",
     "model_target": "TimesFM Baseline",
     "direction": "Forecast Bias",
@@ -240,6 +260,8 @@
     "sell": "**{bearish} of {total} signals are bearish.**\n\n{detail}",
     "hold": "**Mixed: {bullish} bullish, {bearish} bearish of {total} total.**\n\nNo strong directional conviction — holding or waiting is prudent.",
     "multi_timeframe_note": "This recommendation includes {daily} daily signals, {weekly} weekly signals, and {monthly} monthly signals, so longer-term trend evidence is part of the score.",
+    "forecast_note": "TimesFM is included as a weighted signal for the selected {horizon}-trading-day horizon. Current forecast bias is {direction} ({scenario}%).",
+    "forecast_conflict_note": "Because the forecast disagrees with the technical score, the final decision is held at HOLD instead of showing a conflicting BUY/SELL.",
     "buy_fallback": "Multiple factors align positively.",
     "sell_fallback": "Multiple factors point to elevated risk."
   },
@@ -255,7 +277,8 @@
       "bollinger": "Bollinger",
       "volume": "Volume",
       "range_52w": "52W Range",
-      "news": "News"
+      "news": "News",
+      "timesfm_forecast": "TimesFM Forecast"
     },
     "timeframes": {
       "weekly": "Weekly",
@@ -309,7 +332,11 @@
     "news_positive": "Positive news — mild tailwind",
     "news_neutral": "Neutral news — no directional signal",
     "news_negative": "Negative news — mild headwind",
-    "news_very_negative": "Very negative news — strong headwind"
+    "news_very_negative": "Very negative news — strong headwind",
+    "timesfm_bullish": "TimesFM {horizon}-day forecast is bullish: scenario {scenario}% vs baseline {baseline}%, using news ({news}) and 20-day trend ({trend}%).",
+    "timesfm_bearish": "TimesFM {horizon}-day forecast is bearish: scenario {scenario}% vs baseline {baseline}%, using news ({news}) and 20-day trend ({trend}%).",
+    "timesfm_neutral": "TimesFM {horizon}-day forecast is neutral: scenario {scenario}% vs baseline {baseline}%, using news ({news}) and 20-day trend ({trend}%).",
+    "timesfm_unavailable": "TimesFM forecast is unavailable, so it is treated as neutral."
   },
   "indicators": {
     "rsi": "Relative Strength Index (RSI) measures the magnitude of recent price changes to evaluate overbought or oversold conditions. RSI > 70 suggests overbought; RSI < 30 suggests oversold.",
