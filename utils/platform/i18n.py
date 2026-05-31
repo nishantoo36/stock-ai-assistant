@@ -16,6 +16,9 @@ from utils.platform.common import query_param
 TRANSLATIONS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "translations")
 SUPPORTED_LANGUAGES = {
     "en": "English",
+    "hi": "हिंदी",
+    "gu": "ગુજરાતી",
+    "fr": "Français",
 }
 
 # ── Translation Cache ────────────────────────────────────────────────────────
@@ -143,5 +146,8 @@ def get_language_flag(lang_code: str) -> str:
     """Get the flag emoji for a language code."""
     flags = {
         "en": "🇬🇧",
+        "hi": "🇮🇳",
+        "gu": "🇮🇳",
+        "fr": "🇫🇷",
     }
     return flags.get(lang_code, "🌐")
