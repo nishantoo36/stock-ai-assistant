@@ -10,7 +10,7 @@ from utils.data.market_data           import load_stock_info, load_chart_data, l
 from utils.platform.i18n           import t
 from utils.analysis.recommendation import generate_recommendation
 from utils.analysis.timesfm_forecast import build_timesfm_forecast
-from ui.stock.chart             import CHART_PERIODS, render_period_selector, render_chart
+from ui.stock.chart             import CHART_PERIODS, render_chart
 from ui.user.alerts            import render_alert_form
 from ui.stock.analysis          import (
     render_stock_header, render_price,
@@ -109,8 +109,9 @@ def render_stock_view(currency_option: str) -> None:
         price_state.display_currency,
         previous_close=price_state.previous_close,
         exchange_timezone=info.get("exchangeTimezoneName"),
+        stock_info=info,
+        period_change=price_state.day_change,
     )
-    render_period_selector()
     render_timesfm_forecast(
         timesfm_forecast,
         orig_curr,
