@@ -55,10 +55,7 @@ def sync_search_from_url(url_stock: str | None) -> None:
 
     url_search_query = query_param(st.query_params, "q")
     if not url_stock and url_search_query:
-        if (
-            st.session_state.get("last_search_query") != url_search_query
-            or not st.session_state.search_results
-        ):
+        if st.session_state.get("last_search_query") != url_search_query:
             st.session_state.search_query = url_search_query
             _execute_search(url_search_query, update_url=False)
     elif (
